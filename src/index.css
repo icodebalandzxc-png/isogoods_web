@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/5 backdrop-blur-md border border-white/10;
+  }
+
+  .btn-primary {
+    @apply px-8 py-3 bg-primary text-accent font-semibold rounded-full hover:bg-opacity-90 transition-all duration-300 transform hover:scale-105 active:scale-95;
+  }
+
+  .btn-outline {
+    @apply px-8 py-3 border-2 border-primary text-primary font-semibold rounded-full hover:bg-primary hover:text-accent transition-all duration-300 transform hover:scale-105 active:scale-95;
+  }
+
+  .text-gold {
+    @apply text-primary;
+  }
+
+  .gold-gradient {
+    @apply bg-gradient-to-r from-[#D4AF37] via-[#F1D592] to-[#D4AF37] bg-clip-text text-transparent;
+  }
+}
+
+.swiper-pagination-bullet {
+  background: #D4AF37 !important;
+}
+
+.active-link {
+  @apply text-primary relative after:content-[''] after:absolute after:-bottom-1 after:left-0 after:w-full after:h-0.5 after:bg-primary;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-accent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted rounded-full hover:bg-primary/50 transition-colors;
+}

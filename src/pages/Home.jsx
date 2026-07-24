@@ -14,8 +14,49 @@ const Home = () => {
   return (
     <>
       <Helmet>
-        <title>Isogoods Diner | Fine Dining & Premium Cuisine</title>
-        <meta name="description" content="Experience the finest culinary journey at Isogoods Diner. Premium ingredients, elegant atmosphere, and exceptional service." />
+        <title>Isogoods Diner | Fine Dining & Premium Cuisine in Irosin</title>
+        <meta name="description" content="Experience the finest culinary journey at Isogoods Diner. Premium ingredients, elegant atmosphere, and exceptional service in Irosin, Sorsogon." />
+        <script type="application/ld+json">
+          {`
+            {
+              "@context": "https://schema.org",
+              "@type": "Restaurant",
+              "name": "Isogoods Diner",
+              "image": "https://isogoods-web.vercel.app/logo.jpg",
+              "url": "https://isogoods-web.vercel.app/",
+              "telephone": "09958702671",
+              "priceRange": "$$",
+              "address": {
+                "@type": "PostalAddress",
+                "streetAddress": "Near Bher Electronics",
+                "addressLocality": "Irosin",
+                "addressRegion": "Sorsogon",
+                "postalCode": "4707",
+                "addressCountry": "PH"
+              },
+              "geo": {
+                "@type": "GeoCoordinates",
+                "latitude": 12.70535,
+                "longitude": 124.03235
+              },
+              "openingHoursSpecification": {
+                "@type": "OpeningHoursSpecification",
+                "dayOfWeek": [
+                  "Monday",
+                  "Tuesday",
+                  "Wednesday",
+                  "Thursday",
+                  "Friday",
+                  "Saturday",
+                  "Sunday"
+                ],
+                "opens": "09:00",
+                "closes": "21:00"
+              },
+              "servesCuisine": ["Filipino", "Pasta", "Japanese", "Comfort Food"]
+            }
+          `}
+        </script>
       </Helmet>
 
       <Hero />

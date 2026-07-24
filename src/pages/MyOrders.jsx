@@ -15,6 +15,7 @@ const MyOrders = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showTracking, setShowTracking] = useState(false);
   const mapRef = useRef(null);
+  const mapContainerRef = useRef(null);
   const selectedOrderRef = useRef(null);
   const { addToCart, setIsCartOpen } = useCart();
 
@@ -43,13 +44,21 @@ const MyOrders = () => {
     // Check if we have the necessary data and the map library is loaded
     if (selectedOrder && window.L && settings) {
       timer = setTimeout(() => {
-        const mapContainer = document.getElementById('tracking-map');
-        if (!mapContainer) return;
+        if (!mapContainerRef.current) return;
 
         // Clean up existing map instance
         if (mapRef.current) {
-          mapRef.current.remove();
+          try {
+            mapRef.current.remove();
+          } catch (e) {
+            console.warn("Error removing map instance:", e);
+          }
           mapRef.current = null;
+        }
+
+        // Ensure the container is clean
+        if (mapContainerRef.current._leaflet_id) {
+          mapContainerRef.current._leaflet_id = null;
         }
 
         // Use dynamic coords from settings or fallback to default
@@ -57,21 +66,33 @@ const MyOrders = () => {
             ? [parseFloat(settings.restaurant_lat), parseFloat(settings.restaurant_lng)]
             : [12.70535, 124.03235];
 
-        // Initialize map with luxury settings
-        mapInstance = window.L.map('tracking-map', {
-          zoomControl: false,
-          attributionControl: false,
-          fadeAnimation: true,
-          zoomAnimation: true,
-          markerZoomAnimation: true
-        }).setView(RESTO_COORDS, 13);
+        try {
+          // Initialize map with luxury settings
+          mapInstance = window.L.map(mapContainerRef.current, {
+            zoomControl: false,
+            attributionControl: false,
+            fadeAnimation: true,
+            zoomAnimation: true,
+            markerZoomAnimation: true,
+            trackResize: true
+          }).setView(RESTO_COORDS, 13);
 
-        mapRef.current = mapInstance;
+          mapRef.current = mapInstance;
+        } catch (e) {
+          console.error("Failed to initialize map:", e);
+          return;
+        }
 
         // Premium Dark Mode Tiles
         window.L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            opacity: 1
+            maxZoom: 20,
+            attribution: ''
         }).addTo(mapInstance);
+
+        // Force a resize check immediately after tiles are added
+        setTimeout(() => {
+          if (mapInstance) mapInstance.invalidateSize();
+        }, 100);
 
         const isogoodsIcon = window.L.divIcon({
           html: `
@@ -142,7 +163,11 @@ const MyOrders = () => {
                 });
                 window.L.marker(midPoint, { icon: distanceLabel }).addTo(mapInstance);
 
-                mapInstance.fitBounds(routeLine.getBounds(), { padding: [80, 80], animate: false });
+                const isMobile = window.innerWidth < 768;
+                mapInstance.fitBounds(routeLine.getBounds(), {
+                  padding: isMobile ? [40, 40] : [80, 80],
+                  animate: false
+                });
 
                 // ANIMATION: Rider moving along the road
                 if (selectedOrder.status === 'delivering') {
@@ -174,6 +199,11 @@ const MyOrders = () => {
                     };
                     moveRider();
                 }
+
+                // Final size check after all layers added
+                setTimeout(() => {
+                  if (mapInstance) mapInstance.invalidateSize();
+                }, 500);
               } else {
                 // Fallback to straight line if routing fails
                 const path = window.L.polyline([RESTO_COORDS, [custLat, custLng]], {
@@ -182,7 +212,12 @@ const MyOrders = () => {
                   dashArray: '10, 10',
                   opacity: 0.8
                 }).addTo(mapInstance);
-                mapInstance.fitBounds(path.getBounds(), { padding: [50, 50], animate: false });
+
+                const isMobile = window.innerWidth < 768;
+                mapInstance.fitBounds(path.getBounds(), {
+                  padding: isMobile ? [30, 30] : [50, 50],
+                  animate: false
+                });
               }
             })
             .catch(err => {
@@ -197,9 +232,14 @@ const MyOrders = () => {
 
     return () => {
       if (timer) clearTimeout(timer);
-      if (mapInstance) {
-        mapInstance.off();
-        mapInstance.remove();
+      if (mapRef.current) {
+        try {
+          mapRef.current.off();
+          mapRef.current.remove();
+        } catch (e) {
+          console.warn("Map cleanup error:", e);
+        }
+        mapRef.current = null;
       }
     };
   }, [selectedOrder?.order_group_id || selectedOrder?.id]);
@@ -437,6 +477,21 @@ const MyOrders = () => {
                         <span className="flex items-center gap-1"><Clock size={12} /> {new Date(order.order_date).toLocaleDateString()}</span>
                         <span className="text-primary font-black uppercase">₱{order.items.reduce((total, item) => total + (item.quantity * (item.price || 0)), 0)}</span>
                       </div>
+
+                      {order.status === 'completed' && (
+                        <div className="pt-2">
+                           <button
+                             onClick={(e) => {
+                               e.stopPropagation();
+                               setReviewingOrder(order.id);
+                             }}
+                             className="flex items-center gap-2 text-primary hover:text-white transition-colors"
+                           >
+                             <Star size={14} className="fill-primary" />
+                             <span className="text-[10px] font-black uppercase tracking-widest">Rate this experience</span>
+                           </button>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -496,14 +551,14 @@ const MyOrders = () => {
 
               <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 relative">
                 {/* Left Side: Map (The "Whole" Desktop View) */}
-                <div className="w-full md:w-3/5 h-[300px] md:h-full relative bg-slate-900 border-r border-white/5 overflow-hidden">
-                   <div id="tracking-map" className="absolute inset-0 z-0"></div>
+                <div className="w-full md:w-3/5 h-[40vh] md:h-full relative bg-[#0d1117] border-b md:border-b-0 md:border-r border-white/5 overflow-hidden shrink-0">
+                   <div ref={mapContainerRef} className="absolute inset-0 z-0 bg-[#0d1117]"></div>
                    {!selectedOrder.lat && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm z-10 p-10 text-center">
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/80 backdrop-blur-md z-10 p-10 text-center">
                         <div className="max-w-xs space-y-4">
-                          <MapPin size={40} className="text-primary/20 mx-auto" />
-                          <p className="text-neutral/40 text-[10px] uppercase font-bold tracking-widest leading-relaxed">
-                            Exact GPS data not available for this manifest. Please pin your location during next checkout for real-time tracking.
+                          <MapPin size={32} className="text-primary/20 mx-auto" />
+                          <p className="text-neutral/40 text-[9px] uppercase font-bold tracking-[0.2em] leading-relaxed">
+                            Awaiting precise GPS telemetry.
                           </p>
                         </div>
                       </div>
@@ -522,45 +577,82 @@ const MyOrders = () => {
                 <div className="w-full md:w-2/5 flex flex-col overflow-y-auto no-scrollbar bg-accent/40 relative">
 
                   {/* Rider Info Card */}
-                  <div className="px-6 mt-6 md:mt-8 relative z-30">
-                    <div className="bg-primary p-6 rounded-[2.5rem] shadow-2xl flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-2xl bg-secondary/20 flex items-center justify-center overflow-hidden border border-white/20">
-                          <img src={chefDeliver} alt="Rider" className="w-10 h-10 object-contain" />
+                  <div className="px-6 mt-4 md:mt-8 relative z-30">
+                    <div className="bg-primary p-4 md:p-6 rounded-[2rem] md:rounded-[2.5rem] shadow-2xl flex items-center justify-between">
+                      <div className="flex items-center gap-3 md:gap-4">
+                        <div className="w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl bg-secondary/20 flex items-center justify-center overflow-hidden border border-white/20">
+                          <img src={chefDeliver} alt="Rider" className="w-7 h-7 md:w-10 md:h-10 object-contain" />
                         </div>
                         <div>
-                          <h3 className="font-black uppercase text-xs tracking-widest text-secondary">Kuya Rider</h3>
-                          <p className="text-[9px] font-bold text-secondary/60">Express Delivery Partner</p>
+                          <h3 className="font-black uppercase text-[10px] md:text-xs tracking-widest text-secondary">Kuya Rider</h3>
+                          <p className="text-[8px] md:text-[9px] font-bold text-secondary/60">Express Delivery Partner</p>
                         </div>
                       </div>
-                      <a href={`tel:${selectedOrder.phone_number}`} className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-secondary hover:bg-white hover:text-primary transition-all backdrop-blur-md border border-white/10">
-                        <PhoneCall size={20} />
+                      <a href={`tel:${selectedOrder.phone_number}`} className="w-10 h-10 md:w-12 md:h-12 bg-white/20 rounded-xl md:rounded-2xl flex items-center justify-center text-secondary hover:bg-white hover:text-primary transition-all backdrop-blur-md border border-white/10">
+                        <PhoneCall size={18} />
                       </a>
                     </div>
                   </div>
 
+                  {/* Order Manifest / Items List */}
+                  <div className="px-6 mt-6 md:mt-8">
+                    <div className="bg-secondary/20 backdrop-blur-md border border-white/5 rounded-[2rem] p-6 overflow-hidden">
+                        <div className="flex items-center justify-between mb-4 border-b border-white/5 pb-3">
+                            <h4 className="text-[10px] font-black uppercase text-primary tracking-[0.3em]">Order Manifest</h4>
+                            <span className="text-[9px] font-bold text-neutral/40 uppercase">{selectedOrder.items.length} {selectedOrder.items.length === 1 ? 'Item' : 'Items'}</span>
+                        </div>
+                        <div className="space-y-4 max-h-[250px] overflow-y-auto no-scrollbar">
+                            {selectedOrder.items.map((item, idx) => (
+                                <div key={idx} className="flex items-center justify-between gap-4 group/item">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-10 h-10 rounded-lg bg-black/40 border border-white/5 overflow-hidden shrink-0">
+                                            {item.product_image ? (
+                                                <img src={getImageUrl(item.product_image)} alt={item.product_name} className="w-full h-full object-cover opacity-80 group-hover/item:opacity-100 transition-opacity" />
+                                            ) : <ShoppingBag size={14} className="m-auto mt-3 text-white/10" />}
+                                        </div>
+                                        <div>
+                                            <h5 className="text-[10px] font-bold text-neutral uppercase tracking-wider">{item.product_name}</h5>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[8px] font-black text-primary uppercase">x{item.quantity}</span>
+                                                {item.variant_name && item.variant_name !== 'Standard' && (
+                                                    <span className="text-[8px] text-neutral/40 italic">({item.variant_name})</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <span className="text-[9px] font-black text-neutral/60">₱{item.price * item.quantity}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-4 pt-4 border-t border-white/5 flex justify-between items-center">
+                            <span className="text-[9px] font-black uppercase text-neutral/40 tracking-widest">Subtotal</span>
+                            <span className="text-sm font-black text-primary">₱{selectedOrder.items.reduce((total, item) => total + (item.quantity * (item.price || 0)), 0)}</span>
+                        </div>
+                    </div>
+                  </div>
+
                   {/* Tracking Steps Timeline */}
-                  <div className="px-10 py-10 md:py-12 space-y-12">
+                  <div className="px-8 md:px-10 py-8 md:py-12 space-y-8 md:space-y-12">
                     {[
-                      { s: 'pending', l: 'Order Placed', t: 'We have received your order.', i: <Package size={20} />, active: ['pending', 'preparing', 'delivering', 'completed'].includes(selectedOrder.status) },
-                      { s: 'preparing', l: 'Preparing', t: 'Our chefs are crafting your feast.', i: <Utensils size={20} />, active: ['preparing', 'delivering', 'completed'].includes(selectedOrder.status) },
-                      { s: 'delivering', l: 'On the way', t: 'Rider is navigating to your coordinates.', i: <Truck size={20} />, active: ['delivering', 'completed'].includes(selectedOrder.status) },
-                      { s: 'completed', l: 'Delivered', t: `Arrived at: ${selectedOrder.address}`, i: <CheckCircle size={20} />, active: selectedOrder.status === 'completed' }
+                      { s: 'pending', l: 'Order Placed', t: 'We have received your order.', i: <Package size={18} />, active: ['pending', 'preparing', 'delivering', 'completed'].includes(selectedOrder.status) },
+                      { s: 'preparing', l: 'Preparing', t: 'Our chefs are crafting your feast.', i: <Utensils size={18} />, active: ['preparing', 'delivering', 'completed'].includes(selectedOrder.status) },
+                      { s: 'delivering', l: 'On the way', t: 'Rider is navigating to your coordinates.', i: <Truck size={18} />, active: ['delivering', 'completed'].includes(selectedOrder.status) },
+                      { s: 'completed', l: 'Delivered', t: `Arrived at: ${selectedOrder.address}`, i: <CheckCircle size={18} />, active: selectedOrder.status === 'completed' }
                     ].map((step, idx, arr) => (
-                      <div key={idx} className="flex gap-6 relative group">
+                      <div key={idx} className="flex gap-4 md:gap-6 relative group">
                         {idx !== arr.length - 1 && (
-                          <div className={`absolute left-[23px] top-[50px] bottom-[-48px] w-0.5 border-l-2 border-dashed transition-colors duration-1000 ${step.active && arr[idx+1].active ? 'border-primary' : 'border-white/10'}`}></div>
+                          <div className={`absolute left-[19px] md:left-[23px] top-[40px] md:top-[50px] bottom-[-38px] md:bottom-[-48px] w-0.5 border-l-2 border-dashed transition-colors duration-1000 ${step.active && arr[idx+1].active ? 'border-primary' : 'border-white/10'}`}></div>
                         )}
 
-                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-700 shrink-0 ${
+                        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center transition-all duration-700 shrink-0 ${
                           step.active ? 'bg-primary text-secondary shadow-lg shadow-primary/20 scale-110' : 'bg-secondary/40 text-neutral/10 border border-white/5'
                         }`}>
                           {step.i}
                         </div>
 
-                        <div className="space-y-1 pt-1">
-                          <h4 className={`font-black uppercase text-[11px] tracking-widest transition-colors duration-700 ${step.active ? 'text-neutral' : 'text-neutral/20'}`}>{step.l}</h4>
-                          <p className={`text-[10px] font-medium leading-relaxed transition-colors duration-700 ${step.active ? 'text-neutral/40' : 'text-neutral/10'}`}>{step.t}</p>
+                        <div className="space-y-0.5 md:space-y-1 pt-1">
+                          <h4 className={`font-black uppercase text-[10px] md:text-[11px] tracking-widest transition-colors duration-700 ${step.active ? 'text-neutral' : 'text-neutral/20'}`}>{step.l}</h4>
+                          <p className={`text-[9px] md:text-[10px] font-medium leading-relaxed transition-colors duration-700 ${step.active ? 'text-neutral/40' : 'text-neutral/10'}`}>{step.t}</p>
                         </div>
                       </div>
                     ))}
@@ -572,39 +664,39 @@ const MyOrders = () => {
               </div>
 
               {/* Order Summary Floating Bar */}
-              <div className="p-4 md:p-6 bg-accent/80 backdrop-blur-3xl border-t border-white/5 z-40">
-                <div className="bg-secondary/60 border border-white/5 p-5 rounded-[2.5rem] flex items-center justify-between gap-6 shadow-2xl">
-                   <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 bg-accent rounded-2xl overflow-hidden border border-white/5 p-1">
+              <div className="p-3 md:p-6 bg-accent/80 backdrop-blur-3xl border-t border-white/5 z-40 shrink-0">
+                <div className="bg-secondary/60 border border-white/5 p-4 md:p-5 rounded-[2rem] md:rounded-[2.5rem] flex items-center justify-between gap-4 md:gap-6 shadow-2xl">
+                   <div className="flex items-center gap-3 md:gap-4">
+                      <div className="w-10 h-10 md:w-14 md:h-14 bg-accent rounded-xl md:rounded-2xl overflow-hidden border border-white/5 p-1">
                         {selectedOrder.items[0]?.product_image ? (
-                           <img src={getImageUrl(selectedOrder.items[0].product_image)} alt="Order" className="w-full h-full object-cover rounded-xl" />
-                        ) : <ShoppingBag className="w-full h-full p-4 text-white/20" />}
+                           <img src={getImageUrl(selectedOrder.items[0].product_image)} alt="Order" className="w-full h-full object-cover rounded-lg md:rounded-xl" />
+                        ) : <ShoppingBag className="w-full h-full p-2 md:p-4 text-white/20" />}
                       </div>
                       <div>
-                        <h4 className="font-black uppercase text-[11px] text-neutral tracking-widest line-clamp-1">{selectedOrder.items[0]?.product_name}</h4>
-                        <p className="text-[10px] font-bold text-primary uppercase">Total Bill: ₱{selectedOrder.items.reduce((total, item) => total + (item.quantity * (item.price || 0)), 0)}</p>
+                        <h4 className="font-black uppercase text-[9px] md:text-[11px] text-neutral tracking-widest line-clamp-1">{selectedOrder.items[0]?.product_name}</h4>
+                        <p className="text-[8px] md:text-[10px] font-bold text-primary uppercase">Total: ₱{selectedOrder.items.reduce((total, item) => total + (item.quantity * (item.price || 0)), 0)}</p>
                       </div>
                    </div>
-                   <div className="flex gap-3">
+                   <div className="flex gap-2 md:gap-3">
                       {selectedOrder.status === 'completed' && (
                         <>
                           <button
                             onClick={() => handleReorder(selectedOrder)}
-                            className="px-6 py-3 bg-white/5 hover:bg-white/10 text-neutral rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/5"
+                            className="hidden sm:block px-4 md:px-6 py-2 md:py-3 bg-white/5 hover:bg-white/10 text-neutral rounded-xl md:rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all border border-white/5"
                           >
-                            Reorder Now
+                            Reorder
                           </button>
                           <button
                             onClick={() => setReviewingOrder(selectedOrder.id)}
-                            className="px-6 py-3 bg-primary text-secondary rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-primary/20 border border-primary hover:bg-transparent hover:text-primary"
+                            className="px-4 md:px-6 py-2 md:py-3 bg-primary text-secondary rounded-xl md:rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-primary/20 border border-primary hover:bg-transparent hover:text-primary"
                           >
-                            Rate Experience
+                            Rate
                           </button>
                         </>
                       )}
                       <button
                         onClick={() => { setSelectedOrder(null); setShowTracking(false); }}
-                        className="px-6 py-3 bg-white/5 hover:bg-primary text-neutral hover:text-secondary rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/5 hover:border-primary"
+                        className="px-4 md:px-6 py-2 md:py-3 bg-white/5 hover:bg-primary text-neutral hover:text-secondary rounded-xl md:rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all border border-white/5 hover:border-primary"
                       >
                         Close
                       </button>
@@ -621,42 +713,78 @@ const MyOrders = () => {
           {reviewingOrder && (
               <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-secondary/95 backdrop-blur-xl" onClick={() => setReviewingOrder(null)} />
-                  <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="relative z-10 w-full max-w-md bg-accent border border-white/10 rounded-[3rem] p-10 text-center">
-                      <h3 className="text-2xl font-playfair font-bold text-neutral italic mb-2">How was your <span className="text-primary not-italic">feast?</span></h3>
-                      <p className="text-neutral/40 text-[10px] uppercase tracking-widest mb-8">Your feedback helps us cook better.</p>
+                  <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="relative z-10 w-full max-w-lg bg-accent border border-white/10 rounded-[2.5rem] md:rounded-[3rem] p-6 md:p-12 text-center shadow-2xl max-h-[90vh] overflow-y-auto no-scrollbar">
 
-                      <div className="flex justify-center gap-4 mb-8">
-                          {[1, 2, 3, 4, 5].map(star => (
-                              <button key={star} onClick={() => setRating(star)} className={`transition-all ${rating >= star ? 'text-primary scale-125' : 'text-neutral/10'}`}>
-                                  <Star size={32} fill={rating >= star ? 'currentColor' : 'none'} />
-                              </button>
-                          ))}
+                      <div className="mb-6 md:mb-8">
+                        <div className="w-12 h-12 md:w-16 md:h-16 bg-primary/10 rounded-2xl md:rounded-3xl flex items-center justify-center mx-auto mb-4 md:mb-6 border border-primary/20">
+                            <Star className="text-primary fill-primary/20" size={32} />
+                        </div>
+                        <h3 className="text-xl md:text-2xl font-playfair font-bold text-neutral italic mb-2 md:mb-3">Customer <span className="text-primary not-italic">Survey</span></h3>
+                        <p className="text-neutral/60 text-[10px] md:text-xs leading-relaxed max-w-[240px] md:max-w-xs mx-auto">
+                            We'd love to hear about your experience. Please take a minute to answer our quick survey:
+                        </p>
                       </div>
 
-                      <textarea
-                          placeholder="Share your thoughts (optional)..."
-                          value={comment}
-                          onChange={(e) => setComment(e.target.value)}
-                          className="w-full bg-secondary border border-white/10 rounded-2xl p-4 text-neutral text-sm mb-8 focus:border-primary outline-none min-h-[100px]"
-                      />
+                      <div className="space-y-6 md:space-y-8">
+                        {/* Question 1 */}
+                        <div className="space-y-3 md:space-y-4">
+                            <p className="text-[9px] md:text-[10px] font-black uppercase text-primary tracking-widest flex items-center justify-center gap-2">
+                                <span className="w-3 h-px bg-primary/20"></span>
+                                ⭐ How would you rate your experience?
+                                <span className="w-3 h-px bg-primary/20"></span>
+                            </p>
+                            <div className="flex justify-center gap-3 md:gap-4">
+                                {[1, 2, 3, 4, 5].map(star => (
+                                    <button key={star} onClick={() => setRating(star)} className={`transition-all duration-300 transform hover:scale-125 ${rating >= star ? 'text-primary' : 'text-neutral/10'}`}>
+                                        <Star size={28} md:size={36} fill={rating >= star ? 'currentColor' : 'none'} />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
 
-                      <div className="flex gap-4">
+                        {/* Question 2 & 3 */}
+                        <div className="space-y-4 text-left">
+                            <p className="text-[9px] md:text-[10px] font-black uppercase text-primary tracking-widest text-center flex items-center justify-center gap-2">
+                                <span className="w-3 h-px bg-primary/20"></span>
+                                ⭐ Expectations & Improvements
+                                <span className="w-3 h-px bg-primary/20"></span>
+                            </p>
+
+                            <div className="bg-secondary/40 border border-white/5 rounded-[1.5rem] md:rounded-[2rem] p-4 md:p-6 space-y-4">
+                                <div className="space-y-2 text-center">
+                                    <p className="text-[8px] md:text-[9px] font-bold text-neutral/40 uppercase tracking-widest leading-relaxed">Did the item meet your expectations? & Anything we can improve?</p>
+                                    <textarea
+                                        placeholder="Tell us what you loved or how we can do better..."
+                                        value={comment}
+                                        onChange={(e) => setComment(e.target.value)}
+                                        className="w-full bg-black/20 border border-white/10 rounded-xl md:rounded-2xl p-4 md:p-5 text-neutral text-sm focus:border-primary outline-none min-h-[100px] md:min-h-[120px] transition-all"
+                                    />
+                                </div>
+                            </div>
+
+                            <p className="text-[8px] md:text-[9px] text-neutral/30 italic text-center leading-relaxed">
+                                Your feedback helps us improve our products and service.<br/>Thank you for choosing us!
+                            </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col-reverse md:flex-row gap-3 md:gap-4 mt-8 md:mt-10">
                           <button
                             onClick={() => {
                                 setReviewingOrder(null);
                                 setRating(0);
                                 setComment('');
                             }}
-                            className="flex-1 py-4 text-neutral/40 font-black uppercase text-[10px] tracking-widest"
+                            className="w-full md:flex-1 py-4 text-neutral/40 font-black uppercase text-[10px] tracking-widest hover:text-neutral transition-colors"
                           >
-                            Cancel
+                            Dismiss
                           </button>
                           <button
                             onClick={() => submitReview(reviewingOrder)}
-                            disabled={submittingReview}
-                            className="flex-1 bg-primary text-secondary py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20 disabled:opacity-50"
+                            disabled={submittingReview || rating === 0}
+                            className="w-full md:flex-1 bg-primary text-secondary py-4 rounded-xl md:rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg shadow-primary/20 disabled:opacity-20 transition-all hover:bg-white"
                           >
-                            {submittingReview ? 'Submitting...' : 'Submit Review'}
+                            {submittingReview ? 'Sending...' : 'Submit Survey'}
                           </button>
                       </div>
                   </motion.div>

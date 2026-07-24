@@ -7,6 +7,7 @@ import ScrollToTop from './components/ScrollToTop';
 import FloatingButtons from './components/FloatingButtons';
 import CartDrawer from './components/CartDrawer';
 import WelcomeModal from './components/WelcomeModal';
+import RegisterPrompt from './components/RegisterPrompt';
 import { CartProvider, useCart } from './context/CartContext';
 import { NotificationProvider } from './context/NotificationContext';
 
@@ -26,10 +27,13 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 // Layout Wrapper to handle conditional rendering
 const Layout = ({ children }) => {
   const location = useLocation();
-  const isAdminPage = location.pathname === '/admin';
+  const isAdminPage = location.pathname.startsWith('/admin');
   const isCheckoutPage = location.pathname === '/checkout';
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
   const { isCartOpen, setIsCartOpen } = useCart();
+
+  const user = JSON.parse(localStorage.getItem('user') || 'null');
+  const isLoggedAdmin = user && user.role === 'admin';
 
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden">
@@ -38,7 +42,12 @@ const Layout = ({ children }) => {
         {children}
       </main>
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
-      <WelcomeModal />
+      {!isAdminPage && !isLoggedAdmin && !isAuthPage && (
+        <>
+          <WelcomeModal />
+          <RegisterPrompt />
+        </>
+      )}
       {!isAdminPage && !isCheckoutPage && !isAuthPage && <Footer />}
       <ScrollToTop />
       {!isAdminPage && !isCheckoutPage && !isAuthPage && <FloatingButtons />}

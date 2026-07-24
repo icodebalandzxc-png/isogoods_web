@@ -17,7 +17,13 @@ const WelcomeModal = () => {
   useEffect(() => {
     // Fetch settings
     fetch(`${API_BASE_URL}/get_settings.php`)
-      .then(res => res.json())
+      .then(res => {
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+          return res.json();
+        }
+        throw new TypeError("Oops, we haven't got JSON!");
+      })
       .then(data => {
         if (data) {
           setSettings(prev => ({

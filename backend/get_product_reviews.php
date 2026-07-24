@@ -14,14 +14,14 @@ if (!empty($_GET['product_id'])) {
         $sql = "SELECT r.*, u.name as user_name
                 FROM reviews r
                 JOIN users u ON r.user_id = u.id
-                WHERE r.product_id = ?
+                WHERE r.product_id = ? AND r.status = 'approved'
                 ORDER BY r.created_at DESC";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$product_id]);
         $reviews = $stmt->fetchAll();
 
         // Calculate average rating
-        $avgSql = "SELECT AVG(rating) as average_rating, COUNT(*) as review_count FROM reviews WHERE product_id = ?";
+        $avgSql = "SELECT AVG(rating) as average_rating, COUNT(*) as review_count FROM reviews WHERE product_id = ? AND status = 'approved'";
         $avgStmt = $pdo->prepare($avgSql);
         $avgStmt->execute([$product_id]);
         $stats = $avgStmt->fetch();

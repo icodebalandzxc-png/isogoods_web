@@ -6,8 +6,8 @@ require_once 'config.php';
 
 try {
     $sql = "SELECT p.*,
-            AVG(r.rating) as average_rating,
-            COUNT(r.id) as review_count
+            AVG(CASE WHEN r.status = 'approved' THEN r.rating END) as average_rating,
+            COUNT(CASE WHEN r.status = 'approved' THEN r.id END) as review_count
             FROM products p
             LEFT JOIN reviews r ON p.id = r.product_id
             GROUP BY p.id

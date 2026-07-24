@@ -32,7 +32,8 @@ const Register = () => {
         setError(data.message || 'Registration failed');
       }
     } catch (err) {
-      setError('Connection error. Please try again.');
+      console.error('Registration Error:', err);
+      setError('Connection error. Please check if your backend server is running.');
     } finally {
       setLoading(false);
     }

@@ -7,6 +7,10 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     role ENUM('admin', 'customer') DEFAULT 'customer',
+    address TEXT,
+    lat DECIMAL(10, 8),
+    lng DECIMAL(11, 8),
+    phone_number VARCHAR(20),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -20,6 +24,7 @@ CREATE TABLE IF NOT EXISTS products (
     category VARCHAR(100),
     variants TEXT,
     note VARCHAR(255),
+    is_available BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
@@ -37,6 +42,8 @@ CREATE TABLE IF NOT EXISTS orders (
     reservation_date DATE,
     reservation_time TIME,
     address TEXT,
+    lat DECIMAL(10, 8),
+    lng DECIMAL(11, 8),
     phone_number VARCHAR(20),
     proof_of_payment VARCHAR(255),
     order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

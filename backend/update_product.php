@@ -12,8 +12,9 @@ $data = json_decode(file_get_contents("php://input"));
 
 if (!empty($data->id) && !empty($data->name) && !empty($data->price)) {
     try {
-        $sql = "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image_url = ?, variants = ?, note = ? WHERE id = ?";
+        $sql = "UPDATE products SET name = ?, description = ?, price = ?, category = ?, image_url = ?, variants = ?, note = ?, is_available = ? WHERE id = ?";
         $stmt = $pdo->prepare($sql);
+        $is_available = isset($data->is_available) ? (int)$data->is_available : 1;
         $stmt->execute([
             $data->name,
             $data->description,
@@ -22,6 +23,7 @@ if (!empty($data->id) && !empty($data->name) && !empty($data->price)) {
             $data->image_url,
             $data->variants,
             $data->note,
+            $is_available,
             $data->id
         ]);
         echo json_encode(["message" => "Product updated successfully."]);

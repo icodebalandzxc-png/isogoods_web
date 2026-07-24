@@ -26,7 +26,8 @@ import {
   Users,
   Bell,
   MoreVertical,
-  ArrowUpRight
+  ArrowUpRight,
+  Receipt
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, AreaChart, Area } from 'recharts';
@@ -505,7 +506,7 @@ const Admin = () => {
                 <div className="flex items-center gap-3 w-full md:w-auto">
                   <div className="h-10 w-px bg-slate-200 hidden md:block mx-2"></div>
                   <button
-                    onClick={() => setEditingProduct({ name: '', description: '', price: '', category: '', image_url: '', variants: [], note: '', isNew: true })}
+                    onClick={() => setEditingProduct({ name: '', description: '', price: '', category: '', image_url: '', variants: [], note: '', is_available: 1, isNew: true })}
                     className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 shadow-lg shadow-blue-100 transition-all"
                   >
                     <Plus size={18} /> New Product
@@ -583,6 +584,11 @@ const Admin = () => {
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-slate-300"><ImageIcon size={48} /></div>
                               )}
+                              <div className="absolute top-4 left-4 flex gap-2">
+                                <div className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider backdrop-blur-md ${product.is_available ? 'bg-emerald-500/80 text-white' : 'bg-rose-500/80 text-white'}`}>
+                                  {product.is_available ? 'In Stock' : 'Sold Out'}
+                                </div>
+                              </div>
                               <div className="absolute top-4 right-4 flex gap-2">
                                 <button
                                   onClick={() => {
@@ -744,7 +750,14 @@ const Admin = () => {
                               <div className="flex items-center justify-between px-2">
                                 <span className="text-[10px] font-bold text-slate-400 uppercase">{order.payment_method || 'COD'}</span>
                                 {order.proof_of_payment && (
-                                  <button onClick={() => setSelectedProof(order.proof_of_payment)} className="text-[10px] font-bold text-blue-600 hover:underline">View Receipt</button>
+                                  <div className="flex items-center gap-2">
+                                    {order.status === 'pending' && (
+                                      <span className="flex h-2 w-2 rounded-full bg-blue-500 animate-pulse" title="Requires Verification"></span>
+                                    )}
+                                    <button onClick={() => setSelectedProof(getImageUrl(order.proof_of_payment))} className="text-[10px] font-bold text-blue-600 hover:underline flex items-center gap-1">
+                                      <Receipt size={10} /> View Receipt
+                                    </button>
+                                  </div>
                                 )}
                               </div>
                             </div>
@@ -983,7 +996,28 @@ const Admin = () => {
                       <input type="number" step="0.01" value={editingProduct.price} onChange={(e) => setEditingProduct({...editingProduct, price: e.target.value})} className="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold" required />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">Media Upload</label>
+                      <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">Availability Status</label>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setEditingProduct({...editingProduct, is_available: 1})}
+                          className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase transition-all border ${editingProduct.is_available ? 'bg-emerald-500 text-white border-emerald-600' : 'bg-slate-50 text-slate-400 border-slate-200'}`}
+                        >
+                          Available
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingProduct({...editingProduct, is_available: 0})}
+                          className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase transition-all border ${!editingProduct.is_available ? 'bg-rose-500 text-white border-rose-600' : 'bg-slate-50 text-slate-400 border-slate-200'}`}
+                        >
+                          Sold Out
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest ml-1">Media Upload</label>
                       <div className="relative">
                         <input type="file" accept="image/*" onChange={(e) => setEditingProduct({...editingProduct, imageFile: e.target.files[0]})} className="hidden" id="dish-image-upload" />
                         <label htmlFor="dish-image-upload" className="w-full flex items-center justify-center gap-3 px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-white hover:border-blue-200 transition-all text-slate-500 font-bold text-xs">
@@ -1018,18 +1052,32 @@ const AnalyticsView = ({ orders }) => {
     const analyticsData = useMemo(() => {
         const dailyRevenue = {};
         const productSales = {};
+        const hourlyStats = new Array(24).fill(0);
+
         orders.forEach(order => {
             if (order.status === 'completed') {
-                const date = new Date(order.order_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                const dateObj = new Date(order.order_date);
+                const date = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
                 const amount = parseFloat(order.price || 0) * parseInt(order.quantity || 0);
+
                 dailyRevenue[date] = (dailyRevenue[date] || 0) + amount;
+
                 const prodName = order.product_name || 'Unknown';
                 productSales[prodName] = (productSales[prodName] || 0) + parseInt(order.quantity || 0);
+
+                const hour = dateObj.getHours();
+                hourlyStats[hour]++;
             }
         });
+
         const revenueChartData = Object.entries(dailyRevenue).map(([name, value]) => ({ name, value })).slice(-7);
         const productChartData = Object.entries(productSales).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 5);
-        return { revenueChartData, productChartData };
+        const peakHoursData = hourlyStats.map((orders, hour) => ({
+            hour: `${hour}:00`,
+            orders
+        }));
+
+        return { revenueChartData, productChartData, peakHoursData };
     }, [orders]);
 
     const COLORS = ['#3B82F6', '#6366F1', '#8B5CF6', '#EC4899', '#F59E0B'];
@@ -1092,6 +1140,31 @@ const AnalyticsView = ({ orders }) => {
                             </div>
                         ))}
                     </div>
+                </div>
+            </div>
+
+            {/* Peak Hours Analysis */}
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                <div className="flex items-center justify-between mb-10">
+                    <div>
+                        <h4 className="text-xl font-bold text-slate-900">Peak Ordering Hours</h4>
+                        <p className="text-xs text-slate-400 font-medium uppercase tracking-widest mt-1">Order Volume per Hour of Day</p>
+                    </div>
+                    <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl"><Calendar size={20} /></div>
+                </div>
+                <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={analyticsData.peakHoursData}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                            <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94A3B8' }} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94A3B8' }} />
+                            <Tooltip
+                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 30px rgba(0,0,0,0.1)' }}
+                                cursor={{ fill: '#F8FAFC' }}
+                            />
+                            <Bar dataKey="orders" fill="#6366F1" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                    </ResponsiveContainer>
                 </div>
             </div>
 

@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '../context/CartContext';
 import { useNotifications } from '../context/NotificationContext';
 import { HiOutlineLocationMarker, HiOutlineCreditCard, HiOutlineChevronLeft, HiCheckCircle } from 'react-icons/hi';
 import { FaMoneyBillWave, FaWallet } from 'react-icons/fa';
-import { CheckCircle, ArrowRight, Package, Truck, Store, Utensils, Calendar, CreditCard as CardIcon, Landmark, Wallet as WalletIcon, Banknote, User, MapPin, Smartphone } from 'lucide-react';
+import { CheckCircle, ArrowRight, Package, Truck, Store, Utensils, Calendar, CreditCard as CardIcon, Landmark, Wallet as WalletIcon, Banknote, User, MapPin, Smartphone, X, Navigation } from 'lucide-react';
 import { API_BASE_URL, getImageUrl } from '../config';
 
 const Checkout = () => {
@@ -23,7 +23,11 @@ const Checkout = () => {
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [coords, setCoords] = useState({ lat: null, lng: null });
+  const [saveAsDefault, setSaveAsDefault] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false);
+  const mapRef = useRef(null);
+  const markerRef = useRef(null);
   const [proofFile, setProofFile] = useState(null);
   const [user, setUser] = useState(null);
   const [settings, setSettings] = useState({
@@ -33,7 +37,9 @@ const Checkout = () => {
     receiver_name: '',
     bank_transfer_details: '',
     maya_details: '',
-    maribank_details: ''
+    maribank_details: '',
+    restaurant_lat: '12.70535',
+    restaurant_lng: '124.03235'
   });
 
   useEffect(() => {
@@ -53,7 +59,11 @@ const Checkout = () => {
       navigate('/login');
       return;
     }
-    setUser(JSON.parse(storedUser));
+    const parsedUser = JSON.parse(storedUser);
+    setUser(parsedUser);
+    setAddress(parsedUser.address || '');
+    setPhone(parsedUser.phone_number || '');
+    setCustomerName(parsedUser.name || '');
 
     if (cartItems.length === 0) {
       navigate('/menu');
@@ -61,32 +71,108 @@ const Checkout = () => {
   }, [cartItems, navigate]);
 
   const handleGetLocation = () => {
+    setShowMapModal(true);
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser.");
+      // If no geo, just open map with default resto coords
       return;
     }
 
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setCoords({
+        const newCoords = {
           lat: position.coords.latitude,
           lng: position.coords.longitude
-        });
+        };
+        setCoords(newCoords);
         setIsLocating(false);
-        addNotification('Location Pinned', 'Your exact coordinates have been captured!', 'success');
+        // If map is already open, move it
+        if (mapRef.current && markerRef.current) {
+            mapRef.current.setView([newCoords.lat, newCoords.lng], 18);
+            markerRef.current.setLatLng([newCoords.lat, newCoords.lng]);
+        }
       },
       (error) => {
         setIsLocating(false);
-        alert("Unable to retrieve your location. Please ensure GPS is enabled.");
+        console.warn("Geolocation failed, user can pick manually");
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      }
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
   };
+
+  // Initialize Map
+  useEffect(() => {
+    let mapInstance = null;
+    if (showMapModal && window.L) {
+      const timer = setTimeout(() => {
+        const container = document.getElementById('checkout-map-container');
+        if (!container) return;
+
+        // Default to restaurant or already selected coords
+        const initialLat = coords.lat || parseFloat(settings.restaurant_lat);
+        const initialLng = coords.lng || parseFloat(settings.restaurant_lng);
+
+        mapInstance = window.L.map('checkout-map-container', {
+          zoomControl: false,
+          attributionControl: false
+        }).setView([initialLat, initialLng], 16);
+
+        mapRef.current = mapInstance;
+
+        window.L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(mapInstance);
+
+        const customIcon = window.L.divIcon({
+          html: `<div class="w-8 h-8 bg-primary rounded-full border-4 border-white shadow-2xl flex items-center justify-center animate-pulse">
+                   <div class="w-2 h-2 bg-secondary rounded-full"></div>
+                 </div>`,
+          className: 'custom-marker',
+          iconSize: [32, 32],
+          iconAnchor: [16, 32]
+        });
+
+        const marker = window.L.marker([initialLat, initialLng], {
+          icon: customIcon,
+          draggable: true
+        }).addTo(mapInstance);
+
+        markerRef.current = marker;
+
+        marker.on('dragend', (e) => {
+          const { lat, lng } = e.target.getLatLng();
+          setCoords({ lat, lng });
+        });
+
+        mapInstance.on('click', (e) => {
+          const { lat, lng } = e.latlng;
+          marker.setLatLng([lat, lng]);
+          setCoords({ lat, lng });
+        });
+
+        // Add a "My Location" button on the map
+        const LocationControl = window.L.Control.extend({
+          options: { position: 'bottomright' },
+          onAdd: function() {
+            const btn = window.L.DomUtil.create('button', 'bg-primary p-3 rounded-2xl shadow-2xl text-secondary hover:scale-110 transition-transform mb-4 mr-4');
+            btn.innerHTML = '📍';
+            btn.onclick = (e) => {
+                e.preventDefault();
+                handleGetLocation();
+            };
+            return btn;
+          }
+        });
+        mapInstance.addControl(new LocationControl());
+
+      }, 100);
+    }
+
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+      }
+    };
+  }, [showMapModal]);
 
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
@@ -110,6 +196,27 @@ const Checkout = () => {
     if (paymentMethod === 'GCash' && !proofFile) {
       alert("Please upload your GCash proof of payment.");
       return;
+    }
+
+    if (saveAsDefault) {
+      try {
+        const updateRes = await fetch(`${API_BASE_URL}/update_user.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: user.id,
+            address: address,
+            phone_number: phone
+          })
+        });
+        const updateData = await updateRes.json();
+        if (updateData.user) {
+          localStorage.setItem('user', JSON.stringify(updateData.user));
+          setUser(updateData.user);
+        }
+      } catch (e) {
+        console.error("Failed to save default address", e);
+      }
     }
 
     setLoading(true);
@@ -432,6 +539,19 @@ const Checkout = () => {
                   required
                 />
               </div>
+
+              <div className="flex items-center gap-2 px-2">
+                <input
+                  type="checkbox"
+                  id="save-default"
+                  checked={saveAsDefault}
+                  onChange={(e) => setSaveAsDefault(e.target.checked)}
+                  className="w-4 h-4 accent-primary bg-black/30 border-white/5 rounded cursor-pointer"
+                />
+                <label htmlFor="save-default" className="text-[10px] text-neutral/40 uppercase tracking-widest cursor-pointer select-none">
+                  Save as my default delivery address
+                </label>
+              </div>
             </div>
           </div>
 
@@ -586,6 +706,71 @@ const Checkout = () => {
                   </motion.div>
               </div>
           )}
+      </AnimatePresence>
+
+      {/* Map Picker Modal */}
+      <AnimatePresence>
+        {showMapModal && (
+          <div className="fixed inset-0 z-[250] flex items-center justify-center p-4 md:p-10">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowMapModal(false)}
+              className="absolute inset-0 bg-secondary/90 backdrop-blur-xl"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative z-10 w-full max-w-4xl bg-accent h-[80vh] rounded-[3rem] overflow-hidden shadow-2xl flex flex-col border border-white/10"
+            >
+              <div className="p-6 flex justify-between items-center border-b border-white/5">
+                <div>
+                  <h3 className="text-xl font-bold text-neutral uppercase tracking-widest">Pin Your Location</h3>
+                  <p className="text-[10px] text-primary font-black uppercase tracking-widest">Drag the marker to your exact house</p>
+                </div>
+                <button onClick={() => setShowMapModal(false)} className="p-3 bg-white/5 rounded-2xl hover:bg-primary hover:text-secondary transition-all">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 relative">
+                <div id="checkout-map-container" className="absolute inset-0"></div>
+
+                {/* Overlay instructions */}
+                <div className="absolute top-6 left-6 right-6 z-10 pointer-events-none">
+                   <div className="bg-accent/80 backdrop-blur-md border border-white/10 p-4 rounded-2xl inline-block max-w-xs">
+                      <p className="text-[10px] text-neutral/60 leading-relaxed font-medium uppercase tracking-wider">
+                         <span className="text-primary font-black">Desktop Users:</span> Since desktops don't have GPS, please manually drag the gold marker to your delivery address.
+                      </p>
+                   </div>
+                </div>
+              </div>
+
+              <div className="p-6 bg-secondary/50 backdrop-blur-md border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                    <Navigation size={20} className="animate-pulse" />
+                  </div>
+                  <div>
+                    <p className="text-[9px] text-neutral/40 font-black uppercase tracking-widest">Selected Coordinates</p>
+                    <p className="text-xs text-neutral font-bold">{coords.lat?.toFixed(5)}, {coords.lng?.toFixed(5)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowMapModal(false);
+                    addNotification('Location Confirmed', 'Marker position saved successfully.', 'success');
+                  }}
+                  className="w-full md:w-auto px-10 py-4 bg-primary text-secondary rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-lg shadow-primary/20 hover:scale-105 transition-all"
+                >
+                  Confirm This Location
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
     </div>
   );

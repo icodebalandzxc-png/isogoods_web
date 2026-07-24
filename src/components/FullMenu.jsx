@@ -119,7 +119,8 @@ const FullMenu = () => {
       note: product.note,
       description: product.description,
       average_rating: product.average_rating,
-      review_count: product.review_count
+      review_count: product.review_count,
+      is_available: parseInt(product.is_available) !== 0
     });
     return acc;
   }, {});
@@ -237,6 +238,11 @@ const FullMenu = () => {
                             >
                                 {wishlist.includes(item.id) ? <FaHeart className="text-primary group-hover:text-accent" /> : <FaRegHeart className="text-neutral/40" />}
                             </button>
+                            {!item.is_available && (
+                                <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center z-10">
+                                    <span className="bg-primary text-accent px-4 py-1 rounded-full font-black uppercase text-xs tracking-widest -rotate-12 border-2 border-accent">Sold Out</span>
+                                </div>
+                            )}
                           </div>
                         ) : (
                            <div className="w-40 h-40 md:w-56 md:h-56 shrink-0 rounded-full overflow-hidden border-2 border-dashed border-white/10 flex items-center justify-center text-white/5 opacity-50 group-hover:opacity-100 transition-all relative">
@@ -282,7 +288,7 @@ const FullMenu = () => {
                               {item.variants.map((v, vi) => (
                                 <div key={vi} className="flex justify-between items-center text-sm md:text-base group/var">
                                   <div className="flex items-center gap-2">
-                                    {user && (
+                                    {user && item.is_available && (
                                       <button
                                         onClick={() => handleAddToCart(item, v)}
                                         className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center hover:bg-primary hover:text-accent transition-all"
@@ -290,7 +296,7 @@ const FullMenu = () => {
                                         <FaPlus size={10} />
                                       </button>
                                     )}
-                                    <span className="text-neutral/60 group-hover/var:text-neutral transition-colors">{v.label}</span>
+                                    <span className={`${item.is_available ? 'text-neutral/60 group-hover/var:text-neutral' : 'text-neutral/20'} transition-colors`}>{v.label}</span>
                                   </div>
                                   <div className="flex-grow border-b border-dotted border-white/5 mx-3 opacity-30"></div>
                                   <span className="text-primary/80 font-bold group-hover/var:text-primary transition-colors">₱{v.price}</span>
@@ -303,9 +309,10 @@ const FullMenu = () => {
                             <div className="mt-6 flex justify-end">
                                <button
                                   onClick={() => handleAddToCart(item)}
-                                  className="px-6 py-2 bg-primary/10 text-primary hover:bg-primary hover:text-accent font-black uppercase text-[10px] tracking-widest rounded-lg flex items-center gap-2 transition-all border border-primary/20"
+                                  disabled={!item.is_available}
+                                  className={`px-6 py-2 ${item.is_available ? 'bg-primary/10 text-primary hover:bg-primary hover:text-accent' : 'bg-neutral/5 text-neutral/20 cursor-not-allowed'} font-black uppercase text-[10px] tracking-widest rounded-lg flex items-center gap-2 transition-all border ${item.is_available ? 'border-primary/20' : 'border-neutral/10'}`}
                                 >
-                                  <FaShoppingCart /> {item.variants?.length > 0 ? 'Select Base' : 'Add to Cart'}
+                                  <FaShoppingCart /> {!item.is_available ? 'Sold Out' : (item.variants?.length > 0 ? 'Select Base' : 'Add to Cart')}
                                 </button>
                             </div>
                           )}

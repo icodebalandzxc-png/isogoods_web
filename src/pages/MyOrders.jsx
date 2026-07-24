@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import chefPreparing from '../assets/icons/chef_preparing.png';
 import chefDeliver from '../assets/icons/chef_deliver.png';
 import { useNotifications } from '../context/NotificationContext';
+import { useCart } from '../context/CartContext';
 import { API_BASE_URL, getImageUrl } from '../config';
 
 const MyOrders = () => {
@@ -15,6 +16,7 @@ const MyOrders = () => {
   const [showTracking, setShowTracking] = useState(false);
   const mapRef = useRef(null);
   const selectedOrderRef = useRef(null);
+  const { addToCart, setIsCartOpen } = useCart();
 
   // Isogoods Location (Near Bher Electronics, Irosin)
   const ISOGOODS_COORDS = [12.70535, 124.03235];
@@ -319,6 +321,30 @@ const MyOrders = () => {
       }
   };
 
+  const handleReorder = (order) => {
+    order.items.forEach(item => {
+      // Create a reconstructed product object for the cart
+      const product = {
+        id: item.product_id,
+        name: item.product_name,
+        image: item.product_image,
+        price: item.price,
+        variants: [] // The item.price already accounts for the variant in the order record
+      };
+
+      const variant = item.variant_name && item.variant_name !== 'Standard'
+        ? { label: item.variant_name, price: item.price }
+        : null;
+
+      // Force quantity from previous order
+      for(let i = 0; i < (item.quantity || 1); i++) {
+        addToCart(product, variant);
+      }
+    });
+    addNotification('Cart Updated', 'Previous order items added to your cart!', 'success');
+    setIsCartOpen(true);
+  };
+
   const groupedOrders = orders.reduce((acc, order) => {
     const groupId = order.order_group_id || `SINGLE-${order.id}`;
     if (!acc[groupId]) {
@@ -516,7 +542,8 @@ const MyOrders = () => {
                   {/* Tracking Steps Timeline */}
                   <div className="px-10 py-10 md:py-12 space-y-12">
                     {[
-                      { s: 'preparing', l: 'Order Preparing', t: 'Our chefs are crafting your feast.', i: <Utensils size={20} />, active: ['preparing', 'delivering', 'completed'].includes(selectedOrder.status) },
+                      { s: 'pending', l: 'Order Placed', t: 'We have received your order.', i: <Package size={20} />, active: ['pending', 'preparing', 'delivering', 'completed'].includes(selectedOrder.status) },
+                      { s: 'preparing', l: 'Preparing', t: 'Our chefs are crafting your feast.', i: <Utensils size={20} />, active: ['preparing', 'delivering', 'completed'].includes(selectedOrder.status) },
                       { s: 'delivering', l: 'On the way', t: 'Rider is navigating to your coordinates.', i: <Truck size={20} />, active: ['delivering', 'completed'].includes(selectedOrder.status) },
                       { s: 'completed', l: 'Delivered', t: `Arrived at: ${selectedOrder.address}`, i: <CheckCircle size={20} />, active: selectedOrder.status === 'completed' }
                     ].map((step, idx, arr) => (
@@ -560,12 +587,20 @@ const MyOrders = () => {
                    </div>
                    <div className="flex gap-3">
                       {selectedOrder.status === 'completed' && (
-                        <button
-                          onClick={() => setReviewingOrder(selectedOrder.id)}
-                          className="px-6 py-3 bg-primary text-secondary rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-primary/20 border border-primary hover:bg-transparent hover:text-primary"
-                        >
-                          Rate Experience
-                        </button>
+                        <>
+                          <button
+                            onClick={() => handleReorder(selectedOrder)}
+                            className="px-6 py-3 bg-white/5 hover:bg-white/10 text-neutral rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/5"
+                          >
+                            Reorder Now
+                          </button>
+                          <button
+                            onClick={() => setReviewingOrder(selectedOrder.id)}
+                            className="px-6 py-3 bg-primary text-secondary rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-primary/20 border border-primary hover:bg-transparent hover:text-primary"
+                          >
+                            Rate Experience
+                          </button>
+                        </>
                       )}
                       <button
                         onClick={() => { setSelectedOrder(null); setShowTracking(false); }}

@@ -12,9 +12,10 @@ $data = json_decode(file_get_contents("php://input"));
 
 if (!empty($data->name) && !empty($data->price)) {
     try {
-        $sql = "INSERT INTO products (name, description, price, category, image_url, variants, note) VALUES (?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO products (name, description, price, category, image_url, variants, note, is_available) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$data->name, $data->description, $data->price, $data->category, $data->image_url, $data->variants, $data->note]);
+        $is_available = isset($data->is_available) ? (int)$data->is_available : 1;
+        $stmt->execute([$data->name, $data->description, $data->price, $data->category, $data->image_url, $data->variants, $data->note, $is_available]);
         echo json_encode(["message" => "Product created."]);
     } catch (PDOException $e) {
         http_response_code(500);

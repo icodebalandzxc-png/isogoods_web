@@ -1025,7 +1025,6 @@ const Admin = () => {
                         </label>
                       </div>
                     </div>
-                  </div>
 
                   <button type="submit" className="w-full bg-blue-600 text-white font-bold py-5 rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 text-sm tracking-wide">Commit Changes to DB</button>
                 </form>

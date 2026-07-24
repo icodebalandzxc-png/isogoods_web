@@ -65,7 +65,13 @@ const FullMenu = () => {
     // Add a timestamp to prevent browser caching
     const timestamp = new Date().getTime();
     fetch(`${API_BASE}/get_products.php?t=${timestamp}`)
-      .then(res => res.json())
+      .then(res => {
+        const contentType = res.headers.get("content-type");
+        if (contentType && contentType.indexOf("application/json") !== -1) {
+          return res.json();
+        }
+        throw new TypeError("Backend returned non-JSON response. Check API URL.");
+      })
       .then(data => {
         const parsedProducts = data.map(p => ({
           ...p,
@@ -73,7 +79,11 @@ const FullMenu = () => {
         }));
         setDbProducts(parsedProducts);
       })
-      .catch(err => console.error("Error fetching DB products:", err))
+      .catch(err => {
+        console.error("Error fetching DB products:", err);
+        // Fallback to empty products if fetch fails
+        setDbProducts([]);
+      })
       .finally(() => setLoading(false));
   }, []);
 

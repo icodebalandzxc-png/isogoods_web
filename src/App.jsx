@@ -6,6 +6,7 @@ import Loader from './components/Loader';
 import ScrollToTop from './components/ScrollToTop';
 import FloatingButtons from './components/FloatingButtons';
 import CartDrawer from './components/CartDrawer';
+import WelcomeModal from './components/WelcomeModal';
 import { CartProvider, useCart } from './context/CartContext';
 import { NotificationProvider } from './context/NotificationContext';
 
@@ -37,6 +38,7 @@ const Layout = ({ children }) => {
         {children}
       </main>
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
+      <WelcomeModal />
       {!isAdminPage && !isCheckoutPage && !isAuthPage && <Footer />}
       <ScrollToTop />
       {!isAdminPage && !isCheckoutPage && !isAuthPage && <FloatingButtons />}

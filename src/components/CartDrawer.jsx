@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { HiX, HiMinus, HiPlus, HiOutlineShoppingBag } from 'react-icons/hi';
 import { useCart } from '../context/CartContext';
 import { useNavigate } from 'react-router-dom';
+import { getImageUrl } from '../config';
 
 const CartDrawer = ({ isOpen, onClose }) => {
   const { cartItems, removeFromCart, updateQuantity, cartTotal, clearCart } = useCart();
@@ -66,7 +67,7 @@ const CartDrawer = ({ isOpen, onClose }) => {
                   <div key={item.cartItemId} className="flex gap-4 group">
                     <div className="w-20 h-20 rounded-xl overflow-hidden bg-black/20 shrink-0 border border-white/5">
                       {item.image ? (
-                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                        <img src={getImageUrl(item.image)} alt={item.name} className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-white/5 bg-muted/20">
                           <HiOutlineShoppingBag size={32} />

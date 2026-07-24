@@ -52,17 +52,12 @@ const Footer = () => {
           <div>
             <h4 className="text-neutral font-bold text-lg mb-8 uppercase tracking-widest">Hours</h4>
             <ul className="space-y-4 text-neutral/60">
-              <li className="flex justify-between">
-                <span>Mon - Thu:</span>
-                <span className="text-neutral">11:00 - 23:00</span>
+              <li className="flex justify-between items-center">
+                <span>Daily:</span>
+                <span className="text-neutral font-bold">10:00 AM – 10:00 PM</span>
               </li>
-              <li className="flex justify-between">
-                <span>Fri - Sat:</span>
-                <span className="text-neutral">11:00 - 00:00</span>
-              </li>
-              <li className="flex justify-between">
-                <span>Sunday:</span>
-                <span className="text-neutral">09:00 - 22:00</span>
+              <li className="text-[10px] uppercase tracking-widest text-primary font-black pt-2">
+                Open Every Day
               </li>
             </ul>
           </div>
@@ -71,7 +66,9 @@ const Footer = () => {
           <div>
             <h4 className="text-neutral font-bold text-lg mb-8 uppercase tracking-widest">Location</h4>
             <address className="not-italic text-neutral/60 space-y-4">
-              <p>San Julian, Irosin, Sorsogon, Sorsogon, Philippines, 4707</p>
+              <p className="leading-relaxed">
+                M.L. Quezon St. (Formerly Beecool Food House), alongside Bher Electronics, Irosin, Sorsogon
+              </p>
               <p>Email: info@isogoodsdiner.com</p>
               <p>Phone: 0995 870 2671</p>
             </address>

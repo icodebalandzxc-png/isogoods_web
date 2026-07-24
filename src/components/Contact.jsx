@@ -1,7 +1,25 @@
 import { motion } from 'framer-motion';
+import { useState, useEffect } from 'react';
 import { FaPhone, FaMapMarkerAlt, FaClock, FaFacebook } from 'react-icons/fa';
+import { API_BASE_URL } from '../config';
 
 const Contact = () => {
+  const [settings, setSettings] = useState({
+    restaurant_lat: '12.70535',
+    restaurant_lng: '124.03235'
+  });
+
+  useEffect(() => {
+    fetch(`${API_BASE_URL}/get_settings.php`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.restaurant_lat && data.restaurant_lng) {
+          setSettings(data);
+        }
+      })
+      .catch(err => console.error("Error fetching map settings:", err));
+  }, []);
+
   return (
     <section className="py-24 bg-accent" id="contact">
       <div className="container mx-auto px-6">
@@ -21,7 +39,9 @@ const Contact = () => {
                 </div>
                 <div>
                   <h4 className="text-neutral font-bold mb-1">Our Location</h4>
-                  <p className="text-neutral/60">San Julian, Irosin, Sorsogon, Sorsogon, Philippines, 4707</p>
+                  <p className="text-neutral/60 leading-relaxed">
+                    M.L. Quezon St. (Formerly Beecool Food House), alongside Bher Electronics, Irosin, Sorsogon
+                  </p>
                 </div>
               </div>
 
@@ -41,8 +61,8 @@ const Contact = () => {
                 </div>
                 <div>
                   <h4 className="text-neutral font-bold mb-1">Business Hours</h4>
-                  <p className="text-neutral/60">Mon - Fri: 11 AM - 11 PM</p>
-                  <p className="text-neutral/60">Sat - Sun: 9 AM - 12 AM</p>
+                  <p className="text-neutral/60">Daily: 10:00 AM – 10:00 PM</p>
+                  <p className="text-primary text-[10px] font-black uppercase tracking-widest mt-1">Open Every Day</p>
                 </div>
               </div>
             </div>
@@ -90,7 +110,7 @@ const Contact = () => {
         {/* Map */}
         <div className="mt-24 h-[450px] rounded-3xl overflow-hidden shadow-2xl">
           <iframe
-            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3891.9566275465243!2d124.03061!3d12.705!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x33a0c49987817e99%3A0x6b696f0592931a7!2sSan%20Julian%2C%20Irosin%2C%20Sorsogon!5e0!3m2!1sen!2sph!4v1700000000000!5m2!1sen!2sph"
+            src={`https://www.google.com/maps?q=${settings.restaurant_lat},${settings.restaurant_lng}&hl=en&z=18&output=embed`}
             width="100%"
             height="100%"
             style={{ border: 0, filter: 'invert(90%) hue-rotate(180deg) brightness(95%) contrast(90%)' }}

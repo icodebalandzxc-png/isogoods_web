@@ -16,9 +16,8 @@ if (isset($_FILES["image"])) {
     $target_file = $target_dir . $new_filename;
 
     if (move_uploaded_file($_FILES["image"]["tmp_name"], $target_file)) {
-        // Return the relative path from the backend folder
-        $url = "http://localhost/isogoods_web/backend/" . $target_file;
-        echo json_encode(["success" => true, "url" => $url]);
+        // Return only the relative path (e.g., uploads/67bda...)
+        echo json_encode(["success" => true, "url" => $target_file]);
     } else {
         http_response_code(500);
         echo json_encode(["success" => false, "message" => "Upload failed."]);

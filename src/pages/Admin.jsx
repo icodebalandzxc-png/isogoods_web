@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, AreaChart, Area } from 'recharts';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, getImageUrl } from '../config';
 
 const API_BASE = API_BASE_URL;
 
@@ -45,11 +45,89 @@ const Admin = () => {
   const [orders, setOrders] = useState([]);
   const [settings, setSettings] = useState({
     gcash_number: '',
-    gcash_qr_url: ''
+    gcash_qr_url: '',
+    receiver_name: '',
+    bank_transfer_details: '',
+    maya_details: '',
+    maya_qr_url: '',
+    maribank_details: '',
+    restaurant_lat: '',
+    restaurant_lng: ''
   });
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [activeTab, setActiveTab] = useState('menu');
+  const adminMapRef = useRef(null);
+  const adminMarkerRef = useRef(null);
+
+  // Initialize Map for Admin Pinning
+  useEffect(() => {
+    if (activeTab === 'settings' && window.L) {
+      const timer = setTimeout(() => {
+        const container = document.getElementById('admin-resto-map');
+        if (!container) return;
+
+        if (adminMapRef.current) {
+          adminMapRef.current.remove();
+          adminMapRef.current = null;
+        }
+
+        const initialLat = settings.restaurant_lat ? parseFloat(settings.restaurant_lat) : 12.70535;
+        const initialLng = settings.restaurant_lng ? parseFloat(settings.restaurant_lng) : 124.03235;
+
+        const map = window.L.map('admin-resto-map', {
+          zoomControl: true,
+          attributionControl: false
+        }).setView([initialLat, initialLng], 16);
+
+        window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        // Marker logic
+        const updateMarker = (lat, lng) => {
+          if (adminMarkerRef.current) {
+            adminMarkerRef.current.setLatLng([lat, lng]);
+          } else {
+            adminMarkerRef.current = window.L.marker([lat, lng], { draggable: true }).addTo(map);
+
+            adminMarkerRef.current.on('dragend', (event) => {
+              const marker = event.target;
+              const position = marker.getLatLng();
+              setSettings(prev => ({
+                ...prev,
+                restaurant_lat: position.lat.toFixed(6),
+                restaurant_lng: position.lng.toFixed(6)
+              }));
+            });
+          }
+        };
+
+        // Add initial marker
+        updateMarker(initialLat, initialLng);
+
+        // Handle Map Click to Pin
+        map.on('click', (e) => {
+          const { lat, lng } = e.latlng;
+          updateMarker(lat, lng);
+          setSettings(prev => ({
+            ...prev,
+            restaurant_lat: lat.toFixed(6),
+            restaurant_lng: lng.toFixed(6)
+          }));
+        });
+
+        adminMapRef.current = map;
+        setTimeout(() => map.invalidateSize(), 200);
+      }, 500);
+
+      return () => {
+        if (adminMapRef.current) {
+          adminMapRef.current.remove();
+          adminMapRef.current = null;
+          adminMarkerRef.current = null;
+        }
+      };
+    }
+  }, [activeTab]);
 
   // Menu Search & Filter States
   const [searchTerm, setSearchTerm] = useState('');
@@ -276,11 +354,16 @@ const Admin = () => {
     }
   };
 
-  const handleQRUpload = async (file) => {
+  const handleQRUpload = async (file, type) => {
     const url = await uploadImage(file);
     if (url) {
-        setSettings({ ...settings, gcash_qr_url: url });
-        showMsg('QR Code uploaded. Don\'t forget to Save Settings!');
+        if (type === 'maya') {
+            setSettings({ ...settings, maya_qr_url: url });
+            showMsg('Maya QR Code uploaded. Don\'t forget to Save Settings!');
+        } else {
+            setSettings({ ...settings, gcash_qr_url: url });
+            showMsg('GCash QR Code uploaded. Don\'t forget to Save Settings!');
+        }
     }
   };
 
@@ -496,7 +579,7 @@ const Admin = () => {
                           >
                             <div className="relative h-48 bg-slate-100 overflow-hidden">
                               {product.image_url ? (
-                                <img src={product.image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                                <img src={getImageUrl(product.image_url)} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                               ) : (
                                 <div className="w-full h-full flex items-center justify-center text-slate-300"><ImageIcon size={48} /></div>
                               )}
@@ -635,7 +718,7 @@ const Admin = () => {
                           <div className="p-8 bg-slate-50/50 flex flex-col justify-between items-center gap-6">
                             <div className="w-full text-center xl:text-left">
                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 block">Delivery Address</span>
-                               <p className="text-xs text-slate-600 font-medium leading-relaxed bg-white p-4 rounded-xl border border-slate-100 shadow-sm truncate" title={order.address}>
+                               <p className="text-xs text-slate-600 font-medium leading-relaxed bg-white p-4 rounded-xl border border-slate-100 shadow-sm break-words" title={order.address}>
                                   {order.address || 'Pickup at Store'}
                                </p>
                             </div>
@@ -693,6 +776,16 @@ const Admin = () => {
                 <form onSubmit={handleUpdateSettings} className="space-y-8">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-4">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Merchant / Receiver Name</label>
+                      <input
+                        type="text"
+                        value={settings.receiver_name || ''}
+                        onChange={(e) => setSettings({ ...settings, receiver_name: e.target.value })}
+                        placeholder="e.g. JUAN DELA CRUZ"
+                        className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
+                      />
+                    </div>
+                    <div className="space-y-4">
                       <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Merchant GCash Number</label>
                       <input
                         type="text"
@@ -703,16 +796,103 @@ const Admin = () => {
                       />
                     </div>
                     <div className="space-y-4">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Maya Account Details</label>
+                      <input
+                        type="text"
+                        value={settings.maya_details || ''}
+                        onChange={(e) => setSettings({ ...settings, maya_details: e.target.value })}
+                        placeholder="Maya Number"
+                        className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
+                      />
+                    </div>
+                    <div className="space-y-4">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Bank Transfer Info</label>
+                      <input
+                        type="text"
+                        value={settings.bank_transfer_details || ''}
+                        onChange={(e) => setSettings({ ...settings, bank_transfer_details: e.target.value })}
+                        placeholder="Bank Name & Account Number"
+                        className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
+                      />
+                    </div>
+                    <div className="space-y-4">
+                       <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">MariBank Account Details</label>
+                       <input
+                        type="text"
+                        value={settings.maribank_details || ''}
+                        onChange={(e) => setSettings({ ...settings, maribank_details: e.target.value })}
+                        placeholder="MariBank Number"
+                        className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
+                      />
+                    </div>
+
+                    <div className="space-y-4 md:col-span-2">
+                       <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Restaurant Pin Location (GPS)</label>
+
+                       {/* Interactive Map Picker */}
+                       <div className="relative h-[300px] rounded-2xl overflow-hidden border border-slate-200 shadow-inner group">
+                          <div id="admin-resto-map" className="w-full h-full z-0"></div>
+                          <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-md border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
+                             <p className="text-[10px] font-bold text-slate-600 uppercase">Click on map to pin store location</p>
+                          </div>
+
+                          {/* Fallback overlay if map not loaded */}
+                          {!window.L && (
+                            <div className="absolute inset-0 bg-slate-100 flex items-center justify-center text-slate-400 text-xs italic">
+                              Loading map library...
+                            </div>
+                          )}
+                       </div>
+
+                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="relative group">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-600">LAT</span>
+                            <input
+                              type="text"
+                              value={settings.restaurant_lat || ''}
+                              onChange={(e) => setSettings({ ...settings, restaurant_lat: e.target.value })}
+                              placeholder="e.g. 12.705"
+                              className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
+                            />
+                          </div>
+                          <div className="relative group">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-600">LNG</span>
+                            <input
+                              type="text"
+                              value={settings.restaurant_lng || ''}
+                              onChange={(e) => setSettings({ ...settings, restaurant_lng: e.target.value })}
+                              placeholder="e.g. 124.032"
+                              className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
+                            />
+                          </div>
+                       </div>
+                    </div>
+                    <div className="space-y-4">
                        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">GCash QR Code</label>
                        <div className="flex gap-4">
-                          <input type="file" accept="image/*" onChange={(e) => handleQRUpload(e.target.files[0])} className="hidden" id="qr-upload" />
+                          <input type="file" accept="image/*" onChange={(e) => handleQRUpload(e.target.files[0], 'gcash')} className="hidden" id="qr-upload" />
                           <label htmlFor="qr-upload" className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all text-slate-400 font-bold text-[10px] uppercase">
                             <Upload size={24} className="mb-2 text-blue-600" />
-                            Update QR Code
+                            Update GCash QR
                           </label>
                           {settings.gcash_qr_url && (
                             <div className="w-24 h-24 bg-white p-2 rounded-2xl border border-slate-100 flex items-center justify-center shrink-0">
-                              <img src={settings.gcash_qr_url} alt="QR" className="max-w-full max-h-full object-contain" />
+                              <img src={getImageUrl(settings.gcash_qr_url)} alt="GCash QR" className="max-w-full max-h-full object-contain" />
+                            </div>
+                          )}
+                       </div>
+                    </div>
+                    <div className="space-y-4">
+                       <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Maya QR Code</label>
+                       <div className="flex gap-4">
+                          <input type="file" accept="image/*" onChange={(e) => handleQRUpload(e.target.files[0], 'maya')} className="hidden" id="maya-qr-upload" />
+                          <label htmlFor="maya-qr-upload" className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all text-slate-400 font-bold text-[10px] uppercase">
+                            <Upload size={24} className="mb-2 text-green-600" />
+                            Update Maya QR
+                          </label>
+                          {settings.maya_qr_url && (
+                            <div className="w-24 h-24 bg-white p-2 rounded-2xl border border-slate-100 flex items-center justify-center shrink-0">
+                              <img src={getImageUrl(settings.maya_qr_url)} alt="Maya QR" className="max-w-full max-h-full object-contain" />
                             </div>
                           )}
                        </div>

@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaUtensils, FaCoffee, FaIceCream, FaHamburger, FaSearch, FaShoppingCart, FaPhoneAlt, FaPlus, FaHeart, FaRegHeart } from 'react-icons/fa';
+import { FaUtensils, FaCoffee, FaIceCream, FaHamburger, FaSearch, FaShoppingCart, FaPhoneAlt, FaPlus, FaHeart, FaRegHeart, FaStar, FaStarHalfAlt } from 'react-icons/fa';
 import { useCart } from '../context/CartContext';
 import { useNotifications } from '../context/NotificationContext';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL, getImageUrl } from '../config';
 
 const API_BASE = API_BASE_URL;
 
@@ -20,7 +20,20 @@ const FullMenu = () => {
   });
   const navigate = useNavigate();
   const { addToCart } = useCart();
-  const { addNotification } = useNotifications();
+  const [selectedProductReviews, setSelectedProductReviews] = useState(null);
+
+  const fetchReviews = async (productId) => {
+    try {
+        const res = await fetch(`${API_BASE}/get_product_reviews.php?product_id=${productId}`);
+        const data = await res.json();
+        setSelectedProductReviews({
+            productId,
+            ...data
+        });
+    } catch (err) {
+        console.error("Error fetching reviews:", err);
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem('wishlist', JSON.stringify(wishlist));
@@ -104,7 +117,9 @@ const FullMenu = () => {
       price: product.price,
       variants: product.variants,
       note: product.note,
-      description: product.description
+      description: product.description,
+      average_rating: product.average_rating,
+      review_count: product.review_count
     });
     return acc;
   }, {});
@@ -211,7 +226,7 @@ const FullMenu = () => {
                         {item.image ? (
                           <div className="w-40 h-40 md:w-56 md:h-56 shrink-0 rounded-full overflow-hidden border-2 border-primary/30 p-1 group-hover:border-primary transition-colors duration-500 shadow-xl shadow-black/50 relative">
                             <img
-                              src={item.image}
+                              src={getImageUrl(item.image)}
                               alt={item.name}
                               className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform duration-700"
                             />
@@ -241,6 +256,17 @@ const FullMenu = () => {
                             <h4 className="text-xl md:text-2xl font-black text-neutral group-hover:text-primary transition-colors uppercase tracking-tight">
                               {item.name}
                             </h4>
+                            <div className="flex items-center gap-1 ml-4 cursor-pointer" onClick={() => fetchReviews(item.id)}>
+                                {item.review_count > 0 ? (
+                                    <>
+                                        <FaStar className="text-primary text-xs" />
+                                        <span className="text-xs font-bold text-neutral">{parseFloat(item.average_rating).toFixed(1)}</span>
+                                        <span className="text-[10px] text-neutral/40">({item.review_count})</span>
+                                    </>
+                                ) : (
+                                    <span className="text-[10px] text-neutral/20 italic">No reviews</span>
+                                )}
+                            </div>
                             {cat.category !== 'Takoyaki' && <div className="flex-grow border-b-2 border-dotted border-white/10 mb-2"></div>}
                             {item.price && (!item.variants || item.variants.length === 0) && (
                               <span className="text-primary font-black text-2xl">₱{parseFloat(item.price).toFixed(0)}</span>
@@ -311,6 +337,71 @@ const FullMenu = () => {
             </div>
         </div>
       </div>
+
+      {/* Reviews Modal */}
+      <AnimatePresence>
+          {selectedProductReviews && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-secondary/95 backdrop-blur-xl"
+                    onClick={() => setSelectedProductReviews(null)}
+                  />
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    className="relative z-10 w-full max-w-lg bg-accent border border-white/10 rounded-[3rem] p-8 md:p-10 shadow-2xl flex flex-col max-h-[80vh]"
+                  >
+                      <h3 className="text-2xl font-playfair font-bold text-neutral italic mb-6">
+                        Product <span className="text-primary not-italic">Reviews</span>
+                      </h3>
+
+                      <div className="flex items-center gap-4 mb-8 pb-8 border-b border-white/5">
+                          <div className="text-4xl font-black text-primary">{parseFloat(selectedProductReviews.stats.average_rating || 0).toFixed(1)}</div>
+                          <div>
+                              <div className="flex text-primary">
+                                  {[1, 2, 3, 4, 5].map(star => (
+                                      <FaStar key={star} fill={star <= Math.round(selectedProductReviews.stats.average_rating) ? 'currentColor' : 'none'} className="w-4 h-4" />
+                                  ))}
+                              </div>
+                              <p className="text-[10px] text-neutral/40 uppercase tracking-widest mt-1">Based on {selectedProductReviews.stats.review_count} reviews</p>
+                          </div>
+                      </div>
+
+                      <div className="overflow-y-auto pr-4 no-scrollbar space-y-6 flex-grow">
+                          {selectedProductReviews.reviews.length > 0 ? (
+                              selectedProductReviews.reviews.map((rev, ri) => (
+                                  <div key={ri} className="space-y-2">
+                                      <div className="flex justify-between items-start">
+                                          <p className="text-sm font-bold text-neutral">{rev.user_name}</p>
+                                          <div className="flex text-primary scale-75 origin-right">
+                                              {[1, 2, 3, 4, 5].map(star => (
+                                                  <FaStar key={star} fill={star <= rev.rating ? 'currentColor' : 'none'} className="w-4 h-4" />
+                                              ))}
+                                          </div>
+                                      </div>
+                                      <p className="text-xs text-neutral/60 italic leading-relaxed">"{rev.comment || 'No comment provided.'}"</p>
+                                      <p className="text-[9px] text-neutral/20 uppercase tracking-widest">{new Date(rev.created_at).toLocaleDateString()}</p>
+                                  </div>
+                              ))
+                          ) : (
+                              <p className="text-center text-neutral/40 italic py-10">No detailed reviews yet.</p>
+                          )}
+                      </div>
+
+                      <button
+                        onClick={() => setSelectedProductReviews(null)}
+                        className="w-full mt-8 bg-white/5 text-neutral py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-primary hover:text-secondary transition-all"
+                      >
+                          Close Reviews
+                      </button>
+                  </motion.div>
+              </div>
+          )}
+      </AnimatePresence>
     </section>
   );
 };

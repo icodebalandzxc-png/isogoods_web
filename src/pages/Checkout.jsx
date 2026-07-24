@@ -5,8 +5,8 @@ import { useCart } from '../context/CartContext';
 import { useNotifications } from '../context/NotificationContext';
 import { HiOutlineLocationMarker, HiOutlineCreditCard, HiOutlineChevronLeft, HiCheckCircle } from 'react-icons/hi';
 import { FaMoneyBillWave, FaWallet } from 'react-icons/fa';
-import { CheckCircle, ArrowRight, Package } from 'lucide-react';
-import { API_BASE_URL } from '../config';
+import { CheckCircle, ArrowRight, Package, Truck, Store, Utensils, Calendar, CreditCard as CardIcon, Landmark, Wallet as WalletIcon, Banknote, User, MapPin, Smartphone } from 'lucide-react';
+import { API_BASE_URL, getImageUrl } from '../config';
 
 const Checkout = () => {
   const { cartItems, cartTotal, clearCart } = useCart();
@@ -14,14 +14,26 @@ const Checkout = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [orderType, setOrderType] = useState('Delivery');
+  const [reservationDate, setReservationDate] = useState('');
+  const [reservationTime, setReservationTime] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [landmark, setLandmark] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('COD');
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
+  const [coords, setCoords] = useState({ lat: null, lng: null });
+  const [isLocating, setIsLocating] = useState(false);
   const [proofFile, setProofFile] = useState(null);
   const [user, setUser] = useState(null);
   const [settings, setSettings] = useState({
     gcash_number: '0995 870 2671',
-    gcash_qr_url: ''
+    gcash_qr_url: '',
+    maya_qr_url: '',
+    receiver_name: '',
+    bank_transfer_details: '',
+    maya_details: '',
+    maribank_details: ''
   });
 
   useEffect(() => {
@@ -48,12 +60,50 @@ const Checkout = () => {
     }
   }, [cartItems, navigate]);
 
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCoords({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude
+        });
+        setIsLocating(false);
+        addNotification('Location Pinned', 'Your exact coordinates have been captured!', 'success');
+      },
+      (error) => {
+        setIsLocating(false);
+        alert("Unable to retrieve your location. Please ensure GPS is enabled.");
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  };
+
   const handlePlaceOrder = async (e) => {
     e.preventDefault();
     if (loading) return;
 
-    if (!address || !phone) {
-      alert("Please provide your delivery address and phone number.");
+    if (orderType === 'Delivery' && !address) {
+      alert("Please provide your delivery address.");
+      return;
+    }
+
+    if (!phone) {
+      alert("Please provide your phone number.");
+      return;
+    }
+
+    if (orderType === 'Reservation' && (!reservationDate || !reservationTime || !customerName || !address)) {
+      alert("Please select reservation date, time, customer name, and address.");
       return;
     }
 
@@ -103,7 +153,14 @@ const Checkout = () => {
               order_group_id: orderGroupId,
               variant_name: item.selectedVariant ? item.selectedVariant.label : 'Standard',
               quantity: item.quantity,
-              address: address,
+              order_type: orderType,
+              reservation_date: orderType === 'Reservation' ? reservationDate : null,
+              reservation_time: orderType === 'Reservation' ? reservationTime : null,
+              address: orderType === 'Reservation'
+                ? `Name: ${customerName} | Address: ${address} | Landmark: ${landmark}`
+                : (orderType === 'Delivery' ? address : orderType),
+              lat: coords.lat,
+              lng: coords.lng,
               phone_number: phone,
               payment_method: paymentMethod,
               proof_of_payment: proofUrl
@@ -172,7 +229,7 @@ const Checkout = () => {
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl overflow-hidden bg-muted flex items-center justify-center">
                       {item.image ? (
-                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                        <img src={getImageUrl(item.image)} alt={item.name} className="w-full h-full object-cover" />
                       ) : (
                         <HiCheckCircle className="text-white/10" size={24} />
                       )}
@@ -202,135 +259,289 @@ const Checkout = () => {
           </div>
         </motion.div>
 
-        {/* Right Side: Shipping & Payment */}
+        {/* Right Side: Configuration & Logistics */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
-          className="bg-secondary/40 backdrop-blur-xl border border-white/5 rounded-[3rem] p-10 shadow-2xl space-y-10"
+          className="bg-secondary/40 backdrop-blur-3xl border border-white/5 rounded-[3.5rem] p-8 md:p-12 shadow-2xl space-y-12 relative overflow-hidden"
         >
-          {/* Address Section */}
-          <div className="space-y-6">
-            <h3 className="text-lg font-bold text-neutral flex items-center gap-3">
-              <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">2</span>
-              Delivery Destination
-            </h3>
-            <div className="relative group">
-              <HiOutlineLocationMarker className="absolute left-5 top-5 text-primary w-5 h-5 group-focus-within:animate-bounce transition-all" />
-              <textarea
-                placeholder="Enter your exact house number, street, and landmark in Irosin..."
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                rows="4"
-                className="w-full bg-black/20 border border-white/5 rounded-[2rem] py-5 pl-14 pr-6 text-neutral placeholder:text-neutral/20 focus:border-primary/50 focus:bg-black/40 outline-none transition-all resize-none text-sm"
-                required
-              ></textarea>
+          {/* Subtle Background Accent */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[100px] rounded-full -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+
+          {/* Progress Header */}
+          <div className="flex justify-between items-center mb-4">
+            {[1, 2, 3].map((step) => (
+              <div key={step} className="flex items-center gap-2">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black transition-all ${step === 2 ? 'bg-primary text-secondary' : 'bg-white/5 text-white/20'}`}>
+                  {step + 1}
+                </div>
+                <div className={`h-1 w-12 rounded-full ${step < 3 ? 'bg-white/5' : ''}`}></div>
+              </div>
+            ))}
+          </div>
+
+          {/* Service Type Selection */}
+          <div className="space-y-8">
+            <div className="flex justify-between items-end">
+              <div>
+                <h3 className="text-2xl font-playfair font-bold text-neutral italic">Service <span className="text-primary not-italic">Modality</span></h3>
+                <p className="text-[10px] text-neutral/30 uppercase tracking-[0.2em] mt-1">Select how you wish to experience your meal</p>
+              </div>
             </div>
 
-            <div className="space-y-3">
-              <p className="text-[10px] text-primary font-black uppercase tracking-[0.2em] ml-2">Contact Details for Rider</p>
-              <input
-                type="tel"
-                placeholder="Active Phone Number (e.g. 09123456789)"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full bg-black/20 border border-white/5 rounded-2xl py-4 px-6 text-neutral placeholder:text-neutral/20 focus:border-primary/50 focus:bg-black/40 outline-none transition-all text-sm"
-                required
-              />
-              <p className="text-[9px] text-neutral/30 italic ml-2">* Our delivery rider will call this number upon arrival.</p>
+            <div className="grid grid-cols-2 gap-4">
+              {[
+                { id: 'Delivery', icon: Truck, label: 'Delivery', desc: 'To your doorstep' },
+                { id: 'Pick Up', icon: Store, label: 'Pick Up', desc: 'At our counter' },
+                { id: 'Dine', icon: Utensils, label: 'Dine In', desc: 'In-house feast' },
+                { id: 'Reservation', icon: Calendar, label: 'Reserve', desc: 'Schedule ahead' }
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setOrderType(item.id)}
+                  className={`group p-6 rounded-[2.5rem] border transition-all duration-500 flex flex-col items-start gap-4 relative overflow-hidden ${
+                    orderType === item.id
+                      ? 'bg-primary border-primary shadow-[0_20px_40px_rgba(212,175,55,0.15)]'
+                      : 'bg-black/20 border-white/5 hover:border-white/20'
+                  }`}
+                >
+                  <div className={`p-3 rounded-2xl transition-colors ${orderType === item.id ? 'bg-secondary text-primary' : 'bg-white/5 text-neutral/40 group-hover:text-primary'}`}>
+                    <item.icon size={20} />
+                  </div>
+                  <div>
+                    <span className={`text-xs font-black uppercase tracking-widest block ${orderType === item.id ? 'text-secondary' : 'text-neutral'}`}>{item.label}</span>
+                    <span className={`text-[9px] uppercase tracking-tighter opacity-40 ${orderType === item.id ? 'text-secondary' : 'text-neutral'}`}>{item.desc}</span>
+                  </div>
+                  {orderType === item.id && (
+                    <motion.div layoutId="serviceCheck" className="absolute top-6 right-6 text-secondary">
+                      <HiCheckCircle size={20} />
+                    </motion.div>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Payment Section */}
-          <div className="space-y-6">
-            <h3 className="text-lg font-bold text-neutral flex items-center gap-3">
-              <span className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">3</span>
-              Payment Method
-            </h3>
-
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('COD')}
-                className={`p-6 rounded-[2rem] border transition-all flex flex-col items-center gap-3 ${
-                  paymentMethod === 'COD'
-                    ? 'bg-primary/10 border-primary text-primary shadow-[0_0_30px_rgba(212,175,55,0.1)]'
-                    : 'bg-black/20 border-white/5 text-neutral/40 hover:border-white/20'
-                }`}
-              >
-                <FaMoneyBillWave size={24} />
-                <span className="text-[10px] font-black uppercase tracking-widest">Cash on Delivery</span>
-                {paymentMethod === 'COD' && <HiCheckCircle className="absolute top-4 right-4 text-primary" />}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPaymentMethod('GCash')}
-                className={`p-6 rounded-[2rem] border transition-all flex flex-col items-center gap-3 ${
-                  paymentMethod === 'GCash'
-                    ? 'bg-primary/10 border-primary text-primary shadow-[0_0_30px_rgba(212,175,55,0.1)]'
-                    : 'bg-black/20 border-white/5 text-neutral/40 hover:border-white/20'
-                }`}
-              >
-                <FaWallet size={24} />
-                <span className="text-[10px] font-black uppercase tracking-widest">Pay via GCash</span>
-                {paymentMethod === 'GCash' && <HiCheckCircle className="absolute top-4 right-4 text-primary" />}
-              </button>
+          {/* Logistics Form */}
+          <div className="space-y-8">
+            <div className="flex justify-between items-end">
+              <div>
+                <h3 className="text-2xl font-playfair font-bold text-neutral italic">Logistics <span className="text-primary not-italic">Details</span></h3>
+                <p className="text-[10px] text-neutral/30 uppercase tracking-[0.2em] mt-1">Required coordinates for fulfillment</p>
+              </div>
             </div>
 
-            {paymentMethod === 'GCash' && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-primary/5 border border-primary/20 p-8 rounded-[2.5rem] text-center space-y-4"
-              >
-                <p className="text-neutral/60 text-xs italic">Send payment to:</p>
-                <p className="text-primary font-black text-2xl tracking-widest">{settings.gcash_number}</p>
-
-                {settings.gcash_qr_url && (
-                    <div className="bg-white p-4 rounded-3xl inline-block shadow-lg mx-auto">
-                        <img src={settings.gcash_qr_url} alt="GCash QR Code" className="w-48 h-48 object-contain" />
+            <AnimatePresence mode="wait">
+              {orderType === 'Reservation' ? (
+                <motion.div
+                  key="reservation-form"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className="space-y-4"
+                >
+                  <div className="bg-primary/10 border border-primary/20 p-4 rounded-2xl mb-2">
+                    <p className="text-[9px] text-primary font-black uppercase tracking-[0.1em] text-center leading-relaxed">
+                      Security Deposit Required: 50% downpayment is necessary to lock your reservation slot.
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2 group">
+                      <label className="text-[9px] text-primary font-black uppercase tracking-widest ml-4">Schedule Date</label>
+                      <input
+                        type="date"
+                        value={reservationDate}
+                        onChange={(e) => setReservationDate(e.target.value)}
+                        className="w-full bg-black/30 border border-white/5 rounded-2xl py-4 px-6 text-neutral focus:border-primary/50 outline-none text-xs transition-all"
+                        min={new Date().toISOString().split('T')[0]}
+                      />
                     </div>
-                )}
+                    <div className="space-y-2 group">
+                      <label className="text-[9px] text-primary font-black uppercase tracking-widest ml-4">Desired Time</label>
+                      <input
+                        type="time"
+                        value={reservationTime}
+                        onChange={(e) => setReservationTime(e.target.value)}
+                        className="w-full bg-black/30 border border-white/5 rounded-2xl py-4 px-6 text-neutral focus:border-primary/50 outline-none text-xs transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="relative group">
+                    <User className="absolute left-5 top-1/2 -translate-y-1/2 text-primary/40 group-focus-within:text-primary transition-colors" size={16} />
+                    <input
+                      type="text"
+                      placeholder="Full Name for Reservation"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="w-full bg-black/30 border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-neutral focus:border-primary/50 outline-none text-xs transition-all"
+                    />
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
 
-                <div className="pt-4 border-t border-primary/10">
-                    <label className="block text-[10px] text-neutral/40 font-black uppercase tracking-widest mb-4">Upload GCash Receipt</label>
+            <div className="space-y-4">
+              {orderType !== 'Pick Up' && orderType !== 'Dine' && (
+                <div className="space-y-4">
+                  <div className="relative group">
+                    <MapPin className="absolute left-5 top-5 text-primary/40 group-focus-within:text-primary transition-colors" size={16} />
+                    <textarea
+                      placeholder={orderType === 'Reservation' ? "Home Address for Security" : "Exact delivery coordinates and house number..."}
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      rows="2"
+                      className="w-full bg-black/30 border border-white/5 rounded-2xl py-5 pl-12 pr-6 text-neutral placeholder:text-neutral/20 focus:border-primary/50 outline-none transition-all resize-none text-xs"
+                      required
+                    ></textarea>
+
+                    <button
+                      type="button"
+                      onClick={handleGetLocation}
+                      disabled={isLocating}
+                      className={`absolute right-4 bottom-4 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                        coords.lat ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-primary/20 text-primary border border-primary/30 hover:bg-primary hover:text-secondary'
+                      }`}
+                    >
+                      {isLocating ? 'Locating...' : coords.lat ? 'Location Captured ✓' : 'Pin My Exact Location'}
+                    </button>
+                  </div>
+                  {orderType === 'Reservation' && (
                     <div className="relative group">
-                        <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => setProofFile(e.target.files[0])}
-                            className="hidden"
-                            id="proof-upload"
-                        />
-                        <label
-                            htmlFor="proof-upload"
-                            className={`w-full flex flex-col items-center justify-center gap-2 p-6 rounded-[2rem] cursor-pointer transition-all border-2 border-dashed ${
-                                proofFile ? 'bg-primary/20 border-primary text-primary' : 'bg-black/20 border-white/5 text-neutral/40 hover:border-primary/30'
-                            }`}
-                        >
-                            <HiOutlineCreditCard size={24} />
-                            <span className="text-[10px] font-black uppercase tracking-widest">
-                                {proofFile ? proofFile.name : 'Select Receipt Screenshot'}
-                            </span>
-                        </label>
+                      <HiOutlineLocationMarker className="absolute left-5 top-1/2 -translate-y-1/2 text-primary/40 group-focus-within:text-primary transition-colors" size={16} />
+                      <input
+                        type="text"
+                        placeholder="Nearest Landmark (e.g. Near Irosin Church)"
+                        value={landmark}
+                        onChange={(e) => setLandmark(e.target.value)}
+                        className="w-full bg-black/30 border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-neutral focus:border-primary/50 outline-none text-xs transition-all"
+                      />
                     </div>
+                  )}
                 </div>
+              )}
 
-                <p className="text-neutral/40 text-[9px] uppercase tracking-[0.2em]">Verification is required for GCash orders</p>
-              </motion.div>
-            )}
+              <div className="relative group">
+                <Smartphone className="absolute left-5 top-1/2 -translate-y-1/2 text-primary/40 group-focus-within:text-primary transition-colors" size={16} />
+                <input
+                  type="tel"
+                  placeholder="Active Phone Number (09XXXXXXXXX)"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="w-full bg-black/30 border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-neutral focus:border-primary/50 outline-none text-xs transition-all"
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Methodology */}
+          <div className="space-y-8">
+            <div>
+              <h3 className="text-2xl font-playfair font-bold text-neutral italic">Payment <span className="text-primary not-italic">Settlement</span></h3>
+              <p className="text-[10px] text-neutral/30 uppercase tracking-[0.2em] mt-1">Select your preferred transaction channel</p>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {[
+                { id: 'COD', icon: Banknote, label: 'COD' },
+                { id: 'GCash', icon: WalletIcon, label: 'GCash' },
+                { id: 'Maya', icon: CardIcon, label: 'Maya' },
+                { id: 'Bank Transfer', icon: Landmark, label: 'Bank' },
+                { id: 'MariBank', icon: CardIcon, label: 'MariBank' }
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setPaymentMethod(item.id)}
+                  className={`p-5 rounded-[2rem] border transition-all flex flex-col items-center gap-3 relative ${
+                    paymentMethod === item.id
+                      ? 'bg-primary/10 border-primary text-primary shadow-lg'
+                      : 'bg-black/20 border-white/5 text-neutral/30 hover:border-white/20'
+                  }`}
+                >
+                  <item.icon size={18} />
+                  <span className="text-[9px] font-black uppercase tracking-widest">{item.label}</span>
+                  {paymentMethod === item.id && <HiCheckCircle className="absolute top-3 right-3 text-primary" size={14} />}
+                </button>
+              ))}
+            </div>
+
+            <AnimatePresence mode="wait">
+              {paymentMethod !== 'COD' && (
+                <motion.div
+                  key="payment-details"
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  className="bg-secondary/60 border border-primary/20 p-8 rounded-[3rem] text-center space-y-6 relative group"
+                >
+                  <div className="space-y-1">
+                    <p className="text-neutral/40 text-[9px] uppercase tracking-widest">Payable To Merchant</p>
+                    {settings.receiver_name && (
+                      <p className="text-neutral font-black text-xs uppercase tracking-[0.3em]">{settings.receiver_name}</p>
+                    )}
+                  </div>
+
+                  <div className="p-4 bg-black/40 rounded-2xl inline-block border border-white/5">
+                    {paymentMethod === 'GCash' && <p className="text-primary font-black text-2xl tracking-[0.2em]">{settings.gcash_number || '09XX XXX XXXX'}</p>}
+                    {paymentMethod === 'Maya' && <p className="text-primary font-black text-2xl tracking-[0.2em]">{settings.maya_details || '09XX XXX XXXX'}</p>}
+                    {paymentMethod === 'Bank Transfer' && <p className="text-primary font-black text-sm tracking-widest uppercase">{settings.bank_transfer_details || 'Bank Account Info'}</p>}
+                    {paymentMethod === 'MariBank' && <p className="text-primary font-black text-2xl tracking-[0.2em]">{settings.maribank_details || 'MariBank Info'}</p>}
+                  </div>
+
+                  {paymentMethod === 'GCash' && settings.gcash_qr_url && (
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      className="bg-white p-3 rounded-2xl inline-block shadow-2xl mx-auto cursor-zoom-in"
+                    >
+                      <img src={getImageUrl(settings.gcash_qr_url)} alt="GCash QR" className="w-40 h-40 object-contain" />
+                    </motion.div>
+                  )}
+
+                  {paymentMethod === 'Maya' && settings.maya_qr_url && (
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      className="bg-white p-3 rounded-2xl inline-block shadow-2xl mx-auto cursor-zoom-in"
+                    >
+                      <img src={getImageUrl(settings.maya_qr_url)} alt="Maya QR" className="w-40 h-40 object-contain" />
+                    </motion.div>
+                  )}
+
+                  <div className="pt-6 border-t border-white/5">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setProofFile(e.target.files[0])}
+                      className="hidden"
+                      id="proof-upload"
+                    />
+                    <label
+                      htmlFor="proof-upload"
+                      className={`w-full flex items-center justify-center gap-4 p-5 rounded-2xl cursor-pointer transition-all border-2 border-dashed ${
+                        proofFile ? 'bg-primary/20 border-primary text-primary' : 'bg-black/40 border-white/5 text-neutral/40 hover:border-primary/50'
+                      }`}
+                    >
+                      <CardIcon size={20} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        {proofFile ? 'Update Receipt' : 'Attach Proof of Payment'}
+                      </span>
+                    </label>
+                    {proofFile && <p className="text-[9px] text-primary mt-2 italic">File attached: {proofFile.name}</p>}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           <button
             onClick={handlePlaceOrder}
             disabled={loading || isSuccess}
-            className="w-full bg-primary hover:bg-neutral text-secondary font-black py-6 rounded-3xl transition-all duration-500 uppercase text-xs tracking-[0.4em] shadow-xl shadow-primary/10 flex items-center justify-center gap-4 group"
+            className="w-full bg-primary hover:bg-neutral text-secondary font-black py-7 rounded-[2rem] transition-all duration-500 uppercase text-xs tracking-[0.4em] shadow-2xl shadow-primary/20 flex items-center justify-center gap-4 group relative overflow-hidden"
           >
-            {loading ? 'Finalizing Order...' : (
-              <>
-                Finalize Order Manifest <ArrowRightIcon className="group-hover:translate-x-2 transition-transform" />
-              </>
-            )}
+            <span className="relative z-10">{loading ? 'Processing manifest...' : 'Confirm Order Manifest'}</span>
+            {!loading && <ArrowRightIcon className="relative z-10 group-hover:translate-x-2 transition-transform" />}
+            <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 transition-opacity duration-500"></div>
           </button>
         </motion.div>
       </div>

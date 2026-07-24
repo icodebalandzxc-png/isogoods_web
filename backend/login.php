@@ -17,6 +17,11 @@ if (!empty($data->email) && !empty($data->password)) {
         $user = $stmt->fetch();
 
         if ($user && password_verify($data->password, $user['password'])) {
+            if (!$user['is_verified']) {
+                http_response_code(403);
+                echo json_encode(["message" => "Please verify your email before logging in.", "unverified" => true]);
+                exit;
+            }
             // Remove password from response
             unset($user['password']);
             echo json_encode([

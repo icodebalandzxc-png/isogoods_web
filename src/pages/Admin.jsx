@@ -14,6 +14,8 @@ import {
   Upload,
   Search,
   Filter,
+  Sparkles,
+  Send,
   Image as ImageIcon,
   TrendingUp,
   BarChart3,
@@ -53,17 +55,23 @@ const Admin = () => {
     maya_qr_url: '',
     maribank_details: '',
     restaurant_lat: '',
-    restaurant_lng: ''
+    restaurant_lng: '',
+    welcome_title: '',
+    welcome_subtitle: '',
+    promo_title: '',
+    promo_description: '',
+    welcome_button_text: ''
   });
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [activeTab, setActiveTab] = useState('menu');
+  const [activeSettingsTab, setActiveSettingsTab] = useState('payments');
   const adminMapRef = useRef(null);
   const adminMarkerRef = useRef(null);
 
   // Initialize Map for Admin Pinning
   useEffect(() => {
-    if (activeTab === 'settings' && window.L) {
+    if (activeTab === 'settings' && activeSettingsTab === 'location' && window.L) {
       const timer = setTimeout(() => {
         const container = document.getElementById('admin-resto-map');
         if (!container) return;
@@ -128,7 +136,7 @@ const Admin = () => {
         }
       };
     }
-  }, [activeTab]);
+  }, [activeTab, activeSettingsTab]);
 
   // Menu Search & Filter States
   const [searchTerm, setSearchTerm] = useState('');
@@ -137,6 +145,8 @@ const Admin = () => {
   // Modal States
   const [editingProduct, setEditingProduct] = useState(null);
   const [selectedProof, setSelectedProof] = useState(null);
+  const [newsletter, setNewsletter] = useState({ subject: '', message: '' });
+  const [sendingNewsletter, setSendingNewsletter] = useState(false);
 
   const prevOrderCountRef = useRef(0);
   const newOrderSoundRef = useRef(new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'));
@@ -352,6 +362,30 @@ const Admin = () => {
       fetchData();
     } catch (error) {
       showMsg('Failed to update settings', 'error');
+    }
+  };
+
+  const handleSendNewsletter = async (e) => {
+    e.preventDefault();
+    if (!newsletter.subject || !newsletter.message) return;
+    setSendingNewsletter(true);
+    try {
+        const res = await fetch(`${API_BASE}/send_newsletter.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newsletter)
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showMsg(data.message);
+            setNewsletter({ subject: '', message: '' });
+        } else {
+            showMsg(data.message || 'Failed to send', 'error');
+        }
+    } catch (error) {
+        showMsg('Network error', 'error');
+    } finally {
+        setSendingNewsletter(false);
     }
   };
 
@@ -774,161 +808,357 @@ const Admin = () => {
           {activeTab === 'analytics' && <AnalyticsView orders={orders} />}
 
           {activeTab === 'settings' && (
-            <div className="max-w-4xl space-y-8">
-               <div className="bg-white rounded-3xl p-10 border border-slate-100 shadow-sm">
-                <div className="flex items-center gap-4 mb-10 pb-6 border-b border-slate-100">
-                   <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
-                     <Settings size={24} />
-                   </div>
-                   <div>
-                     <h3 className="text-xl font-bold text-slate-900">Payment Gateway Settings</h3>
-                     <p className="text-sm text-slate-400">Configure GCash information for customer checkouts.</p>
-                   </div>
+            <div className="max-w-6xl space-y-10">
+              <header className="mb-10">
+                <h3 className="text-2xl font-bold text-slate-900">System Configuration</h3>
+                <p className="text-slate-500 text-sm mt-1">Manage global application settings and marketing content.</p>
+              </header>
+
+              <div className="flex flex-col lg:flex-row gap-10">
+                {/* Internal Settings Navigation */}
+                <aside className="lg:w-64 shrink-0">
+                  <nav className="flex lg:flex-col gap-2 p-2 bg-white rounded-2xl border border-slate-100 shadow-sm overflow-x-auto no-scrollbar">
+                    {[
+                      { id: 'payments', label: 'Payments', icon: DollarSign },
+                      { id: 'location', label: 'Store Location', icon: ArrowUpRight },
+                      { id: 'marketing', label: 'Marketing Modal', icon: Sparkles },
+                      { id: 'security', label: 'Security', icon: PackageX },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => setActiveSettingsTab(item.id)}
+                        className={`flex items-center gap-3 px-5 py-3 rounded-xl transition-all whitespace-nowrap ${
+                          activeSettingsTab === item.id
+                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
+                            : 'text-slate-500 hover:bg-slate-50'
+                        }`}
+                      >
+                        <item.icon size={18} />
+                        <span className="text-sm font-bold tracking-wide">{item.label}</span>
+                      </button>
+                    ))}
+                  </nav>
+                </aside>
+
+                {/* Settings Content Area */}
+                <div className="flex-1 min-w-0">
+                  <AnimatePresence mode="wait">
+                    {activeSettingsTab === 'payments' && (
+                      <motion.div
+                        key="payments"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        className="space-y-8"
+                      >
+                        <div className="bg-white rounded-3xl p-8 md:p-10 border border-slate-100 shadow-sm">
+                          <div className="flex items-center gap-4 mb-8 pb-6 border-b border-slate-100">
+                            <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+                              <DollarSign size={24} />
+                            </div>
+                            <div>
+                              <h4 className="text-lg font-bold text-slate-900">Payment Gateways</h4>
+                              <p className="text-xs text-slate-400 font-medium">Configure GCash, Maya, and Bank details.</p>
+                            </div>
+                          </div>
+
+                          <form onSubmit={handleUpdateSettings} className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                              <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Merchant Name</label>
+                                <input
+                                  type="text"
+                                  value={settings.receiver_name || ''}
+                                  onChange={(e) => setSettings({ ...settings, receiver_name: e.target.value })}
+                                  placeholder="Full Name"
+                                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">GCash Number</label>
+                                <input
+                                  type="text"
+                                  value={settings.gcash_number || ''}
+                                  onChange={(e) => setSettings({ ...settings, gcash_number: e.target.value })}
+                                  placeholder="09XX XXX XXXX"
+                                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Maya Details</label>
+                                <input
+                                  type="text"
+                                  value={settings.maya_details || ''}
+                                  onChange={(e) => setSettings({ ...settings, maya_details: e.target.value })}
+                                  placeholder="Account Number"
+                                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Bank Info</label>
+                                <input
+                                  type="text"
+                                  value={settings.bank_transfer_details || ''}
+                                  onChange={(e) => setSettings({ ...settings, bank_transfer_details: e.target.value })}
+                                  placeholder="Bank & Account"
+                                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
+                                />
+                              </div>
+                              <div className="space-y-3 md:col-span-2">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">MariBank Details</label>
+                                <input
+                                  type="text"
+                                  value={settings.maribank_details || ''}
+                                  onChange={(e) => setSettings({ ...settings, maribank_details: e.target.value })}
+                                  placeholder="Account Number"
+                                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
+                                />
+                              </div>
+
+                              <div className="space-y-4">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">GCash QR Code</label>
+                                <div className="flex gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                                  <input type="file" accept="image/*" onChange={(e) => handleQRUpload(e.target.files[0], 'gcash')} className="hidden" id="qr-upload-tab" />
+                                  <label htmlFor="qr-upload-tab" className="flex-1 flex flex-col items-center justify-center p-4 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-all">
+                                    <Upload size={20} className="mb-1 text-blue-600" />
+                                    <span className="text-[9px] font-bold uppercase text-slate-400">Change</span>
+                                  </label>
+                                  {settings.gcash_qr_url && (
+                                    <div className="w-16 h-16 bg-white p-1 rounded-lg border border-slate-200 flex items-center justify-center shrink-0">
+                                      <img src={getImageUrl(settings.gcash_qr_url)} alt="GCash QR" className="max-w-full max-h-full object-contain" />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="space-y-4">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Maya QR Code</label>
+                                <div className="flex gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+                                  <input type="file" accept="image/*" onChange={(e) => handleQRUpload(e.target.files[0], 'maya')} className="hidden" id="maya-qr-upload-tab" />
+                                  <label htmlFor="maya-qr-upload-tab" className="flex-1 flex flex-col items-center justify-center p-4 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-all">
+                                    <Upload size={20} className="mb-1 text-green-600" />
+                                    <span className="text-[9px] font-bold uppercase text-slate-400">Change</span>
+                                  </label>
+                                  {settings.maya_qr_url && (
+                                    <div className="w-16 h-16 bg-white p-1 rounded-lg border border-slate-200 flex items-center justify-center shrink-0">
+                                      <img src={getImageUrl(settings.maya_qr_url)} alt="Maya QR" className="max-w-full max-h-full object-contain" />
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            <button type="submit" className="w-full bg-blue-600 text-white font-bold py-5 rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 flex items-center justify-center gap-3">
+                              <Save size={18} /> Update Payment Records
+                            </button>
+                          </form>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {activeSettingsTab === 'location' && (
+                      <motion.div
+                        key="location"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        className="space-y-8"
+                      >
+                        <div className="bg-white rounded-3xl p-8 md:p-10 border border-slate-100 shadow-sm">
+                           <div className="flex items-center gap-4 mb-8 pb-6 border-b border-slate-100">
+                            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-2xl">
+                              <ArrowUpRight size={24} />
+                            </div>
+                            <div>
+                              <h4 className="text-lg font-bold text-slate-900">Store Logistics</h4>
+                              <p className="text-xs text-slate-400 font-medium">Pin your exact coordinates for delivery calculations.</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-6">
+                            <div className="relative h-[400px] rounded-3xl overflow-hidden border border-slate-100 shadow-inner group">
+                              <div id="admin-resto-map" className="w-full h-full z-0"></div>
+                              <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-md border border-slate-200 px-4 py-2 rounded-xl shadow-sm">
+                                <p className="text-[10px] font-bold text-slate-600 uppercase">Click on map to re-pin restaurant</p>
+                              </div>
+                            </div>
+
+                            <form onSubmit={handleUpdateSettings} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="relative">
+                                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-600 uppercase">Lat</span>
+                                <input
+                                  type="text"
+                                  value={settings.restaurant_lat || ''}
+                                  onChange={(e) => setSettings({ ...settings, restaurant_lat: e.target.value })}
+                                  className="w-full pl-16 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
+                                />
+                              </div>
+                              <div className="relative">
+                                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-600 uppercase">Lng</span>
+                                <input
+                                  type="text"
+                                  value={settings.restaurant_lng || ''}
+                                  onChange={(e) => setSettings({ ...settings, restaurant_lng: e.target.value })}
+                                  className="w-full pl-16 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
+                                />
+                              </div>
+                              <button type="submit" className="md:col-span-2 bg-indigo-600 text-white font-bold py-5 rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 flex items-center justify-center gap-3 mt-4">
+                                <Save size={18} /> Update Store Coordinates
+                              </button>
+                            </form>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {activeSettingsTab === 'marketing' && (
+                      <motion.div
+                        key="marketing"
+                        initial={{ opacity: 0, x: 20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        className="space-y-8"
+                      >
+                        <div className="bg-white rounded-3xl p-8 md:p-10 border border-slate-100 shadow-sm">
+                           <div className="flex items-center gap-4 mb-8 pb-6 border-b border-slate-100">
+                            <div className="p-3 bg-amber-50 text-amber-600 rounded-2xl">
+                              <Sparkles size={24} />
+                            </div>
+                            <div>
+                              <h4 className="text-lg font-bold text-slate-900">Welcome Modal</h4>
+                              <p className="text-xs text-slate-400 font-medium">Customize the announcement popup for customers.</p>
+                            </div>
+                          </div>
+
+                          <form onSubmit={handleUpdateSettings} className="space-y-8">
+                            <div className="grid grid-cols-1 gap-6">
+                              <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Main Headline</label>
+                                <input
+                                  type="text"
+                                  value={settings.welcome_title || ''}
+                                  onChange={(e) => setSettings({ ...settings, welcome_title: e.target.value })}
+                                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
+                                />
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Sub-headline</label>
+                                <input
+                                  type="text"
+                                  value={settings.welcome_subtitle || ''}
+                                  onChange={(e) => setSettings({ ...settings, welcome_subtitle: e.target.value })}
+                                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-medium"
+                                />
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-3">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Promo Label</label>
+                                  <input
+                                    type="text"
+                                    value={settings.promo_title || ''}
+                                    onChange={(e) => setSettings({ ...settings, promo_title: e.target.value })}
+                                    className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-black uppercase tracking-wider"
+                                  />
+                                </div>
+                                <div className="space-y-3">
+                                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Call to Action (Button)</label>
+                                  <input
+                                    type="text"
+                                    value={settings.welcome_button_text || ''}
+                                    onChange={(e) => setSettings({ ...settings, welcome_button_text: e.target.value })}
+                                    className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-3">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Promo Content Details</label>
+                                <textarea
+                                  value={settings.promo_description || ''}
+                                  onChange={(e) => setSettings({ ...settings, promo_description: e.target.value })}
+                                  rows="4"
+                                  className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 text-sm leading-relaxed"
+                                />
+                              </div>
+                            </div>
+                            <button type="submit" className="w-full bg-slate-900 text-white font-bold py-5 rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-3">
+                              <Save size={18} /> Deploy Modal Updates
+                            </button>
+                          </form>
+                        </div>
+
+                        {/* Newsletter Broadcast */}
+                        <div className="bg-white rounded-3xl p-8 md:p-10 border border-slate-100 shadow-sm mt-8">
+                           <div className="flex items-center gap-4 mb-8 pb-6 border-b border-slate-100">
+                            <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+                              <Bell size={24} />
+                            </div>
+                            <div>
+                              <h4 className="text-lg font-bold text-slate-900">Newsletter Broadcast</h4>
+                              <p className="text-xs text-slate-400 font-medium">Send an email update to all "IsoGoods Circle" subscribers.</p>
+                            </div>
+                          </div>
+
+                          <form onSubmit={handleSendNewsletter} className="space-y-6">
+                            <div className="space-y-3">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email Subject</label>
+                              <input
+                                type="text"
+                                value={newsletter.subject}
+                                onChange={(e) => setNewsletter({ ...newsletter, subject: e.target.value })}
+                                placeholder="e.g. New Seasonal Menu is here!"
+                                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
+                                required
+                              />
+                            </div>
+                            <div className="space-y-3">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Message Body (HTML allowed)</label>
+                              <textarea
+                                value={newsletter.message}
+                                onChange={(e) => setNewsletter({ ...newsletter, message: e.target.value })}
+                                rows="6"
+                                placeholder="Write your message here..."
+                                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 text-sm leading-relaxed"
+                                required
+                              />
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={sendingNewsletter}
+                                className="w-full bg-blue-600 text-white font-bold py-5 rounded-2xl hover:bg-blue-700 transition-all shadow-xl shadow-blue-100 flex items-center justify-center gap-3 disabled:opacity-50"
+                            >
+                              <Send size={18} /> {sendingNewsletter ? 'Sending Broadcast...' : 'Send to All Subscribers'}
+                            </button>
+                          </form>
+                        </div>
+                      </motion.div>
+                    )}
+
+                    {activeSettingsTab === 'security' && (
+                      <motion.div
+                        key="security"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        className="space-y-8"
+                      >
+                         <div className="bg-rose-50 rounded-3xl p-8 md:p-12 border border-rose-100 flex flex-col md:flex-row items-center gap-8 shadow-sm">
+                            <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center text-rose-500 shadow-xl shadow-rose-200/50 shrink-0">
+                               <PackageX size={40} />
+                            </div>
+                            <div className="text-center md:text-left">
+                               <h4 className="text-xl font-bold text-rose-900">Administrative Security</h4>
+                               <p className="text-rose-600/70 text-sm mt-1 mb-6">Changing system settings will reflect globally. Ensure you log out when finished to protect store data.</p>
+                               <button
+                                  onClick={() => window.confirm('Logout and terminate session?') && (window.location.href = '/login')}
+                                  className="px-10 py-4 bg-rose-600 text-white rounded-2xl text-xs font-bold uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-200"
+                               >
+                                 Terminate Admin Session
+                               </button>
+                            </div>
+                         </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-
-                <form onSubmit={handleUpdateSettings} className="space-y-8">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div className="space-y-4">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Merchant / Receiver Name</label>
-                      <input
-                        type="text"
-                        value={settings.receiver_name || ''}
-                        onChange={(e) => setSettings({ ...settings, receiver_name: e.target.value })}
-                        placeholder="e.g. JUAN DELA CRUZ"
-                        className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
-                      />
-                    </div>
-                    <div className="space-y-4">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Merchant GCash Number</label>
-                      <input
-                        type="text"
-                        value={settings.gcash_number || ''}
-                        onChange={(e) => setSettings({ ...settings, gcash_number: e.target.value })}
-                        placeholder="e.g. 09XX XXX XXXX"
-                        className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
-                      />
-                    </div>
-                    <div className="space-y-4">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Maya Account Details</label>
-                      <input
-                        type="text"
-                        value={settings.maya_details || ''}
-                        onChange={(e) => setSettings({ ...settings, maya_details: e.target.value })}
-                        placeholder="Maya Number"
-                        className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
-                      />
-                    </div>
-                    <div className="space-y-4">
-                      <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Bank Transfer Info</label>
-                      <input
-                        type="text"
-                        value={settings.bank_transfer_details || ''}
-                        onChange={(e) => setSettings({ ...settings, bank_transfer_details: e.target.value })}
-                        placeholder="Bank Name & Account Number"
-                        className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
-                      />
-                    </div>
-                    <div className="space-y-4">
-                       <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">MariBank Account Details</label>
-                       <input
-                        type="text"
-                        value={settings.maribank_details || ''}
-                        onChange={(e) => setSettings({ ...settings, maribank_details: e.target.value })}
-                        placeholder="MariBank Number"
-                        className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
-                      />
-                    </div>
-
-                    <div className="space-y-4 md:col-span-2">
-                       <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Restaurant Pin Location (GPS)</label>
-
-                       {/* Interactive Map Picker */}
-                       <div className="relative h-[300px] rounded-2xl overflow-hidden border border-slate-200 shadow-inner group">
-                          <div id="admin-resto-map" className="w-full h-full z-0"></div>
-                          <div className="absolute top-4 left-4 z-10 bg-white/90 backdrop-blur-md border border-slate-200 px-3 py-1.5 rounded-lg shadow-sm">
-                             <p className="text-[10px] font-bold text-slate-600 uppercase">Click on map to pin store location</p>
-                          </div>
-
-                          {/* Fallback overlay if map not loaded */}
-                          {!window.L && (
-                            <div className="absolute inset-0 bg-slate-100 flex items-center justify-center text-slate-400 text-xs italic">
-                              Loading map library...
-                            </div>
-                          )}
-                       </div>
-
-                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="relative group">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-600">LAT</span>
-                            <input
-                              type="text"
-                              value={settings.restaurant_lat || ''}
-                              onChange={(e) => setSettings({ ...settings, restaurant_lat: e.target.value })}
-                              placeholder="e.g. 12.705"
-                              className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
-                            />
-                          </div>
-                          <div className="relative group">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-600">LNG</span>
-                            <input
-                              type="text"
-                              value={settings.restaurant_lng || ''}
-                              onChange={(e) => setSettings({ ...settings, restaurant_lng: e.target.value })}
-                              placeholder="e.g. 124.032"
-                              className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:bg-white focus:border-blue-400 outline-none transition-all text-slate-900 font-bold"
-                            />
-                          </div>
-                       </div>
-                    </div>
-                    <div className="space-y-4">
-                       <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">GCash QR Code</label>
-                       <div className="flex gap-4">
-                          <input type="file" accept="image/*" onChange={(e) => handleQRUpload(e.target.files[0], 'gcash')} className="hidden" id="qr-upload" />
-                          <label htmlFor="qr-upload" className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all text-slate-400 font-bold text-[10px] uppercase">
-                            <Upload size={24} className="mb-2 text-blue-600" />
-                            Update GCash QR
-                          </label>
-                          {settings.gcash_qr_url && (
-                            <div className="w-24 h-24 bg-white p-2 rounded-2xl border border-slate-100 flex items-center justify-center shrink-0">
-                              <img src={getImageUrl(settings.gcash_qr_url)} alt="GCash QR" className="max-w-full max-h-full object-contain" />
-                            </div>
-                          )}
-                       </div>
-                    </div>
-                    <div className="space-y-4">
-                       <label className="text-xs font-bold text-slate-500 uppercase tracking-widest ml-1">Maya QR Code</label>
-                       <div className="flex gap-4">
-                          <input type="file" accept="image/*" onChange={(e) => handleQRUpload(e.target.files[0], 'maya')} className="hidden" id="maya-qr-upload" />
-                          <label htmlFor="maya-qr-upload" className="flex-1 flex flex-col items-center justify-center p-6 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-all text-slate-400 font-bold text-[10px] uppercase">
-                            <Upload size={24} className="mb-2 text-green-600" />
-                            Update Maya QR
-                          </label>
-                          {settings.maya_qr_url && (
-                            <div className="w-24 h-24 bg-white p-2 rounded-2xl border border-slate-100 flex items-center justify-center shrink-0">
-                              <img src={getImageUrl(settings.maya_qr_url)} alt="Maya QR" className="max-w-full max-h-full object-contain" />
-                            </div>
-                          )}
-                       </div>
-                    </div>
-                  </div>
-                  <button type="submit" className="w-full bg-slate-900 text-white font-bold py-5 rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 flex items-center justify-center gap-3">
-                    <Save size={18} /> Update Configuration
-                  </button>
-                </form>
-              </div>
-
-              <div className="bg-rose-50 rounded-3xl p-10 border border-rose-100">
-                <div className="flex items-center gap-3 text-rose-700 mb-4">
-                  <PackageX size={20} />
-                  <h4 className="font-bold">Security Zone</h4>
-                </div>
-                <p className="text-rose-600/70 text-sm mb-6">Changing these settings will affect global payment processing for all customers.</p>
-                <button
-                   onClick={() => window.confirm('Logout and terminate session?') && (window.location.href = '/login')}
-                   className="px-8 py-3 bg-white text-rose-600 border border-rose-200 rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-rose-600 hover:text-white transition-all shadow-sm shadow-rose-200/20"
-                >
-                  Terminate Admin Session
-                </button>
               </div>
             </div>
           )}

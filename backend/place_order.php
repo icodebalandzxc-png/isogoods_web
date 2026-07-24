@@ -7,6 +7,7 @@ header("Content-Type: application/json; charset=UTF-8");
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') exit;
 
 require_once 'config.php';
+require_once 'emailer.php';
 
 $data = json_decode(file_get_contents("php://input"));
 

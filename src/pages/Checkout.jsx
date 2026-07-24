@@ -287,6 +287,20 @@ const Checkout = () => {
       const error = results.find(r => r.error || (r.message && r.message.includes("Failed")));
       if (error) throw new Error(error.error || error.message);
 
+      // Send Order Confirmation Email
+      try {
+        await fetch(`${API_BASE_URL}/send_order_email.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            order_group_id: orderGroupId,
+            user_id: user.id
+          })
+        });
+      } catch (emailErr) {
+        console.warn("Failed to send order email", emailErr);
+      }
+
       addNotification('Order Confirmed', `Order ${orderGroupId} is being processed!`, 'success');
       clearCart();
     } catch (err) {

@@ -1,0 +1,12 @@
+{
+    "name": "isogoods/backend",
+    "description": "Backend for Isogoods",
+    "authors": [
+        {
+            "name": "Developer"
+        }
+    ],
+    "require": {
+        "phpmailer/phpmailer": "^7.1"
+    }
+}

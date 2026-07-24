@@ -7,6 +7,7 @@ header("Content-Type: application/json; charset=UTF-8");
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') exit;
 
 require_once 'config.php';
+require_once 'emailer.php';
 
 $data = json_decode(file_get_contents("php://input"));
 
@@ -20,6 +21,13 @@ if (!empty($data->email)) {
     try {
         $stmt = $pdo->prepare("INSERT INTO newsletter_subs (email) VALUES (?)");
         if ($stmt->execute([$data->email])) {
+            // Send Confirmation Email
+            Emailer::send(
+                $data->email,
+                "Newsletter Subscription",
+                "<h3>Thank you for subscribing!</h3><p>You'll now receive the latest updates and offers from Isogoods Diner.</p>"
+            );
+
             echo json_encode(["message" => "Subscribed successfully!"]);
         }
     } catch (PDOException $e) {

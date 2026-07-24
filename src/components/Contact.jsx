@@ -8,6 +8,14 @@ const Contact = () => {
     restaurant_lat: '12.70535',
     restaurant_lng: '124.03235'
   });
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    subject: '',
+    message: ''
+  });
+  const [status, setStatus] = useState({ type: '', message: '' });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetch(`${API_BASE_URL}/get_settings.php`)
@@ -19,6 +27,32 @@ const Contact = () => {
       })
       .catch(err => console.error("Error fetching map settings:", err));
   }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setStatus({ type: '', message: '' });
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/contact.php`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        setStatus({ type: 'success', message: data.message });
+        setFormData({ name: '', email: '', subject: '', message: '' });
+      } else {
+        setStatus({ type: 'error', message: data.message || 'Something went wrong.' });
+      }
+    } catch (error) {
+      setStatus({ type: 'error', message: 'Failed to connect to the server.' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <section className="py-24 bg-accent" id="contact">
@@ -83,26 +117,64 @@ const Contact = () => {
             viewport={{ once: true }}
             className="glass p-8 md:p-12 rounded-3xl"
           >
-            <form className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {status.message && (
+                <div className={`p-4 rounded-lg text-sm ${status.type === 'success' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-500 border border-rose-500/20'}`}>
+                  {status.message}
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-xs uppercase tracking-widest text-primary font-bold">Name</label>
-                  <input type="text" className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-neutral focus:border-primary outline-none transition-colors" placeholder="Your Name" />
+                  <input
+                    type="text"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-neutral focus:border-primary outline-none transition-colors"
+                    placeholder="Your Name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs uppercase tracking-widest text-primary font-bold">Email</label>
-                  <input type="email" className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-neutral focus:border-primary outline-none transition-colors" placeholder="Your Email" />
+                  <input
+                    type="email"
+                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-neutral focus:border-primary outline-none transition-colors"
+                    placeholder="Your Email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                  />
                 </div>
               </div>
               <div className="space-y-2">
                 <label className="text-xs uppercase tracking-widest text-primary font-bold">Subject</label>
-                <input type="text" className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-neutral focus:border-primary outline-none transition-colors" placeholder="Subject" />
+                <input
+                  type="text"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-neutral focus:border-primary outline-none transition-colors"
+                  placeholder="Subject"
+                  value={formData.subject}
+                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-xs uppercase tracking-widest text-primary font-bold">Message</label>
-                <textarea rows="4" className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-neutral focus:border-primary outline-none transition-colors" placeholder="Your Message"></textarea>
+                <textarea
+                  rows="4"
+                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-neutral focus:border-primary outline-none transition-colors"
+                  placeholder="Your Message"
+                  value={formData.message}
+                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                  required
+                ></textarea>
               </div>
-              <button type="submit" className="btn-primary w-full">Send Message</button>
+              <button
+                type="submit"
+                className="btn-primary w-full disabled:opacity-50"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Sending...' : 'Send Message'}
+              </button>
             </form>
           </motion.div>
         </div>

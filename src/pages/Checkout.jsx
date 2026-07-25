@@ -522,22 +522,24 @@ const Checkout = () => {
             <div className="space-y-4">
               {orderType !== 'Pick Up' && orderType !== 'Dine' && (
                 <div className="space-y-4">
-                  <div className="relative group">
-                    <MapPin className="absolute left-5 top-5 text-primary/40 group-focus-within:text-primary transition-colors" size={16} />
-                    <textarea
-                      placeholder={orderType === 'Reservation' ? "Home Address for Security" : "Exact delivery coordinates and house number..."}
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      rows="2"
-                      className="w-full bg-black/30 border border-white/5 rounded-2xl py-5 pl-12 pr-6 text-neutral placeholder:text-neutral/20 focus:border-primary/50 outline-none transition-all resize-none text-xs"
-                      required
-                    ></textarea>
+                  <div className="space-y-3">
+                    <div className="relative group">
+                      <MapPin className="absolute left-5 top-5 text-primary/40 group-focus-within:text-primary transition-colors" size={16} />
+                      <textarea
+                        placeholder={orderType === 'Reservation' ? "Home Address for Security" : "Exact delivery coordinates and house number..."}
+                        value={address}
+                        onChange={(e) => setAddress(e.target.value)}
+                        rows="3"
+                        className="w-full bg-black/30 border border-white/5 rounded-2xl py-5 pl-12 pr-6 text-neutral placeholder:text-neutral/20 focus:border-primary/50 outline-none transition-all resize-none text-xs"
+                        required
+                      ></textarea>
+                    </div>
 
                     <button
                       type="button"
                       onClick={handleGetLocation}
                       disabled={isLocating}
-                      className={`absolute right-4 bottom-4 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                      className={`w-full py-4 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
                         coords.lat ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-primary/20 text-primary border border-primary/30 hover:bg-primary hover:text-secondary'
                       }`}
                     >

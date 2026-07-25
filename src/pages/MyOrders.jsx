@@ -569,17 +569,6 @@ const MyOrders = () => {
                      </div>
                   </div>
                 </div>
-                        </div>
-                        <div className="flex items-center justify-end gap-2 text-[10px] text-neutral/40">
-                           <Phone size={12} className="text-primary" />
-                           <span>{order.phone_number || 'N/A'}</span>
-                        </div>
-                     </div>
-                     <div className="flex items-center gap-2 text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                        View Details <ChevronRight size={14} />
-                     </div>
-                  </div>
-                </div>
               </motion.div>
             ))}
           </div>

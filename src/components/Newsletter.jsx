@@ -61,21 +61,23 @@ const Newsletter = () => {
               Maging isa sa mga unang makakatanggap ng IsoGoods updates!
             </p>
 
-            <form onSubmit={handleSubscribe} className="mt-12 max-w-lg mx-auto relative group">
-              <div className="relative">
-                <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-neutral/20 group-focus-within:text-primary transition-colors" size={20} />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Ilagay ang iyong email address"
-                  className="w-full bg-black/20 border border-white/10 rounded-full py-6 pl-16 pr-32 text-neutral placeholder:text-neutral/20 focus:border-primary/50 outline-none transition-all"
-                />
+            <form onSubmit={handleSubscribe} className="mt-12 max-w-lg mx-auto group">
+              <div className="flex flex-col md:relative md:flex-row items-center gap-4 md:gap-0">
+                <div className="relative w-full">
+                  <Mail className="absolute left-6 top-1/2 -translate-y-1/2 text-neutral/20 group-focus-within:text-primary transition-colors" size={20} />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="Ilagay ang iyong email address"
+                    className="w-full bg-black/20 border border-white/10 rounded-full py-5 md:py-6 pl-14 md:pl-16 pr-6 md:pr-40 text-neutral placeholder:text-neutral/20 focus:border-primary/50 outline-none transition-all text-xs md:text-sm"
+                  />
+                </div>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 bg-primary hover:bg-neutral text-secondary font-black px-6 py-3.5 rounded-full transition-all flex items-center gap-2 group/btn disabled:opacity-50"
+                  className="w-full md:w-auto md:absolute md:right-2 md:top-2 md:bottom-2 bg-primary hover:bg-neutral text-secondary font-black px-8 py-5 md:py-0 rounded-full transition-all flex items-center justify-center gap-2 group/btn disabled:opacity-50 whitespace-nowrap"
                 >
                   <span className="text-[10px] uppercase tracking-widest">{loading ? '...' : 'Subscribe'}</span>
                   <Send size={14} className="group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform" />

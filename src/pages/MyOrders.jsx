@@ -475,7 +475,12 @@ const MyOrders = () => {
                       </h3>
                       <div className="flex items-center gap-4 text-[10px] text-neutral/40 font-medium">
                         <span className="flex items-center gap-1"><Clock size={12} /> {new Date(order.order_date).toLocaleDateString()}</span>
-                        <span className="text-primary font-black uppercase">₱{order.items.reduce((total, item) => total + (item.quantity * (item.price || 0)), 0)}</span>
+                        <div className="flex flex-col">
+                           <span className="text-primary font-black uppercase">Total: ₱{order.items.reduce((total, item) => total + (item.quantity * (item.price || 0)), 0)}</span>
+                           {order.items.reduce((total, item) => total + parseFloat(item.balance_amount || 0), 0) > 0 && (
+                             <span className="text-rose-500 font-black uppercase text-[8px] animate-pulse">Balance: ₱{order.items.reduce((total, item) => total + parseFloat(item.balance_amount || 0), 0)}</span>
+                           )}
+                        </div>
                       </div>
 
                       {order.status === 'completed' && (
@@ -612,10 +617,18 @@ const MyOrders = () => {
                                         </div>
                                         <div>
                                             <h5 className="text-[10px] font-bold text-neutral uppercase tracking-wider">{item.product_name}</h5>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[8px] font-black text-primary uppercase">x{item.quantity}</span>
-                                                {item.variant_name && item.variant_name !== 'Standard' && (
-                                                    <span className="text-[8px] text-neutral/40 italic">({item.variant_name})</span>
+                                            <div className="flex flex-col gap-0.5">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[8px] font-black text-primary uppercase">x{item.quantity}</span>
+                                                    {item.variant_name && item.variant_name !== 'Standard' && (
+                                                        <span className="text-[8px] text-neutral/40 italic">({item.variant_name})</span>
+                                                    )}
+                                                </div>
+                                                {parseFloat(item.balance_amount) > 0 && (
+                                                  <div className="flex gap-2 text-[7px] uppercase font-bold">
+                                                    <span className="text-emerald-500">Paid: ₱{parseFloat(item.amount_paid).toFixed(0)}</span>
+                                                    <span className="text-rose-500">Bal: ₱{parseFloat(item.balance_amount).toFixed(0)}</span>
+                                                  </div>
                                                 )}
                                             </div>
                                         </div>

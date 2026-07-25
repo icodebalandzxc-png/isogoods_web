@@ -30,7 +30,12 @@ if (!empty($data->user_id) && !empty($data->product_id) && ($is_delivery ? $has_
         $lat = isset($data->lat) ? $data->lat : null;
         $lng = isset($data->lng) ? $data->lng : null;
 
-        $sql = "INSERT INTO orders (user_id, product_id, order_group_id, variant_name, quantity, address, lat, lng, phone_number, payment_method, proof_of_payment, order_type, reservation_date, reservation_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        // New financial columns
+        $total_amount = isset($data->total_amount) ? $data->total_amount : 0;
+        $amount_paid = isset($data->amount_paid) ? $data->amount_paid : 0;
+        $balance_amount = isset($data->balance_amount) ? $data->balance_amount : 0;
+
+        $sql = "INSERT INTO orders (user_id, product_id, order_group_id, variant_name, quantity, address, lat, lng, phone_number, payment_method, proof_of_payment, order_type, reservation_date, reservation_time, total_amount, amount_paid, balance_amount) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $pdo->prepare($sql);
 
         if ($stmt->execute([
@@ -47,7 +52,10 @@ if (!empty($data->user_id) && !empty($data->product_id) && ($is_delivery ? $has_
             $proof_of_payment,
             $order_type,
             $reservation_date,
-            $reservation_time
+            $reservation_time,
+            $total_amount,
+            $amount_paid,
+            $balance_amount
         ])) {
             echo json_encode(["message" => "Order placed successfully!"]);
         } else {

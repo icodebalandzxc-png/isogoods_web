@@ -24,6 +24,11 @@ try {
     addColumnSafe($pdo, 'orders', 'reservation_date', "DATE AFTER order_type");
     addColumnSafe($pdo, 'orders', 'reservation_time', "TIME AFTER reservation_date");
 
+    // Payment tracking columns
+    addColumnSafe($pdo, 'orders', 'total_amount', "DECIMAL(10,2) AFTER reservation_time");
+    addColumnSafe($pdo, 'orders', 'amount_paid', "DECIMAL(10,2) AFTER total_amount");
+    addColumnSafe($pdo, 'orders', 'balance_amount', "DECIMAL(10,2) AFTER amount_paid");
+
     echo "<br>Migration process completed!";
 } catch (Exception $e) {
     echo "Migration failed: " . $e->getMessage();

@@ -732,6 +732,8 @@ const Admin = () => {
                       return parseFloat(item.price || 0);
                     };
                     const totalAmount = order.items.reduce((sum, item) => sum + (getItemPrice(item) * parseInt(item.quantity)), 0);
+                    const amountPaid = order.items.reduce((sum, item) => sum + parseFloat(item.amount_paid || 0), 0);
+                    const balanceAmount = order.items.reduce((sum, item) => sum + parseFloat(item.balance_amount || 0), 0);
 
                     return (
                       <motion.div
@@ -775,9 +777,19 @@ const Admin = () => {
                                 </div>
                               ))}
                             </div>
-                            <div className="mt-6 pt-6 border-t-2 border-dashed border-slate-100 flex justify-between items-center px-3">
-                              <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Grand Total</span>
-                              <span className="text-xl font-bold text-blue-600">₱{totalAmount.toLocaleString()}</span>
+                            <div className="mt-6 pt-6 border-t-2 border-dashed border-slate-100 space-y-2 px-3">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Grand Total</span>
+                                <span className="text-sm font-bold text-slate-900">₱{totalAmount.toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Paid</span>
+                                <span className="text-sm font-bold text-emerald-600">₱{amountPaid.toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between items-center pt-2 border-t border-slate-50">
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Balance</span>
+                                <span className="text-xl font-bold text-blue-600">₱{balanceAmount.toLocaleString()}</span>
+                              </div>
                             </div>
                           </div>
 

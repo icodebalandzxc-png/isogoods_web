@@ -20,6 +20,7 @@ const Checkout = () => {
   const [customerName, setCustomerName] = useState('');
   const [landmark, setLandmark] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('COD');
+  const [paymentOption, setPaymentOption] = useState('Full'); // 'Full' or '50%'
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [coords, setCoords] = useState({ lat: null, lng: null });
@@ -193,8 +194,8 @@ const Checkout = () => {
       return;
     }
 
-    if (paymentMethod === 'GCash' && !proofFile) {
-      alert("Please upload your GCash proof of payment.");
+    if (paymentMethod !== 'COD' && !proofFile) {
+      alert(`Please upload your ${paymentMethod} proof of payment.`);
       return;
     }
 
@@ -224,10 +225,13 @@ const Checkout = () => {
     setIsSuccess(true);
     const orderGroupId = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
+    const amountPaid = paymentOption === '50%' ? (cartTotal / 2) : cartTotal;
+    const balanceAmount = cartTotal - amountPaid;
+
     try {
       let proofUrl = null;
       // Background process
-      if (paymentMethod === 'GCash' && proofFile) {
+      if (paymentMethod !== 'COD' && proofFile) {
         const formData = new FormData();
         formData.append('image', proofFile);
         const uploadRes = await fetch(`${API_BASE_URL}/upload.php`, {
@@ -250,6 +254,11 @@ const Checkout = () => {
       }
 
       const results = await Promise.all(cartItems.map(async (item) => {
+        // Calculate item share of total for accounting
+        const itemTotal = item.price * item.quantity;
+        const itemPaid = paymentOption === '50%' ? (itemTotal / 2) : itemTotal;
+        const itemBalance = itemTotal - itemPaid;
+
         try {
           const res = await fetch(`${API_BASE_URL}/place_order.php`, {
             method: 'POST',
@@ -270,7 +279,10 @@ const Checkout = () => {
               lng: coords.lng,
               phone_number: phone,
               payment_method: paymentMethod,
-              proof_of_payment: proofUrl
+              proof_of_payment: proofUrl,
+              total_amount: itemTotal,
+              amount_paid: itemPaid,
+              balance_amount: itemBalance
             })
           });
           const text = await res.text();
@@ -420,7 +432,12 @@ const Checkout = () => {
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => setOrderType(item.id)}
+                  onClick={() => {
+                    setOrderType(item.id);
+                    if (item.id === 'Reservation' && paymentMethod === 'COD') {
+                      setPaymentMethod('GCash');
+                    }
+                  }}
                   className={`group p-6 rounded-[2.5rem] border transition-all duration-500 flex flex-col items-start gap-4 relative overflow-hidden ${
                     orderType === item.id
                       ? 'bg-primary border-primary shadow-[0_20px_40px_rgba(212,175,55,0.15)]'
@@ -571,9 +588,28 @@ const Checkout = () => {
 
           {/* Payment Methodology */}
           <div className="space-y-8">
-            <div>
-              <h3 className="text-2xl font-playfair font-bold text-neutral italic">Payment <span className="text-primary not-italic">Settlement</span></h3>
-              <p className="text-[10px] text-neutral/30 uppercase tracking-[0.2em] mt-1">Select your preferred transaction channel</p>
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className="text-2xl font-playfair font-bold text-neutral italic">Payment <span className="text-primary not-italic">Settlement</span></h3>
+                <p className="text-[10px] text-neutral/30 uppercase tracking-[0.2em] mt-1">Select your preferred transaction channel</p>
+              </div>
+
+              {orderType === 'Reservation' && (
+                <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
+                  <button
+                    onClick={() => setPaymentOption('Full')}
+                    className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${paymentOption === 'Full' ? 'bg-primary text-secondary' : 'text-neutral/40 hover:text-neutral'}`}
+                  >
+                    Full Payment
+                  </button>
+                  <button
+                    onClick={() => setPaymentOption('50%')}
+                    className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${paymentOption === '50%' ? 'bg-primary text-secondary' : 'text-neutral/40 hover:text-neutral'}`}
+                  >
+                    50% Deposit
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -583,7 +619,8 @@ const Checkout = () => {
                 { id: 'Maya', icon: CardIcon, label: 'Maya' },
                 { id: 'Bank Transfer', icon: Landmark, label: 'Bank' },
                 { id: 'MariBank', icon: CardIcon, label: 'MariBank' }
-              ].map((item) => (
+              ].filter(item => orderType === 'Reservation' ? item.id !== 'COD' : true)
+               .map((item) => (
                 <button
                   key={item.id}
                   type="button"
@@ -611,13 +648,24 @@ const Checkout = () => {
                   className="bg-secondary/60 border border-primary/20 p-8 rounded-[3rem] text-center space-y-6 relative group"
                 >
                   <div className="space-y-1">
-                    <p className="text-neutral/40 text-[9px] uppercase tracking-widest">Payable To Merchant</p>
+                    <p className="text-neutral/40 text-[9px] uppercase tracking-widest">
+                      {paymentOption === '50%' ? 'Required Deposit (50%)' : 'Payable To Merchant'}
+                    </p>
                     {settings.receiver_name && (
                       <p className="text-neutral font-black text-xs uppercase tracking-[0.3em]">{settings.receiver_name}</p>
                     )}
                   </div>
 
                   <div className="p-4 bg-black/40 rounded-2xl inline-block border border-white/5">
+                    <p className="text-primary font-black text-3xl mb-4">
+                      ₱{(paymentOption === '50%' ? cartTotal / 2 : cartTotal).toFixed(0)}
+                    </p>
+                    {paymentOption === '50%' && (
+                      <p className="text-[10px] text-neutral/40 uppercase tracking-widest mb-4">
+                        Remaining Balance: ₱{(cartTotal / 2).toFixed(0)}
+                      </p>
+                    )}
+
                     {paymentMethod === 'GCash' && <p className="text-primary font-black text-2xl tracking-[0.2em]">{settings.gcash_number || '09XX XXX XXXX'}</p>}
                     {paymentMethod === 'Maya' && <p className="text-primary font-black text-2xl tracking-[0.2em]">{settings.maya_details || '09XX XXX XXXX'}</p>}
                     {paymentMethod === 'Bank Transfer' && <p className="text-primary font-black text-sm tracking-widest uppercase">{settings.bank_transfer_details || 'Bank Account Info'}</p>}

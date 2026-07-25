@@ -13,6 +13,10 @@ const MyOrders = () => {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [payingBalanceOrder, setPayingBalanceOrder] = useState(null);
+  const [payBalanceMethod, setPayBalanceMethod] = useState('GCash');
+  const [payBalanceProof, setPayBalanceProof] = useState(null);
+  const [isPayingBalance, setIsPayingBalance] = useState(false);
   const [showTracking, setShowTracking] = useState(false);
   const mapRef = useRef(null);
   const mapContainerRef = useRef(null);
@@ -397,7 +401,52 @@ const MyOrders = () => {
     return acc;
   }, {});
 
-  const ordersToDisplay = Object.values(groupedOrders);
+    const handlePayBalance = async () => {
+        if (!payBalanceProof) {
+            alert("Please upload proof of payment.");
+            return;
+        }
+
+        setIsPayingBalance(true);
+        try {
+            let proofUrl = null;
+            const formData = new FormData();
+            formData.append('image', payBalanceProof);
+            const uploadRes = await fetch(`${API_BASE_URL}/upload.php`, {
+                method: 'POST',
+                body: formData
+            });
+            const uploadData = await uploadRes.json();
+            if (uploadData.success) {
+                proofUrl = uploadData.url;
+            } else {
+                throw new Error(uploadData.message);
+            }
+
+            const res = await fetch(`${API_BASE_URL}/pay_balance.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    order_group_id: payingBalanceOrder.order_group_id || payingBalanceOrder.id,
+                    payment_method: payBalanceMethod,
+                    proof_of_payment: proofUrl
+                })
+            });
+
+            if (res.ok) {
+                addNotification('Payment Received', 'Your balance has been settled!', 'success');
+                setPayingBalanceOrder(null);
+                setPayBalanceProof(null);
+                fetchOrders(user.id);
+            }
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            setIsPayingBalance(false);
+        }
+    };
+
+    const ordersToDisplay = Object.values(groupedOrders);
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-accent pt-20">
@@ -691,6 +740,14 @@ const MyOrders = () => {
                       </div>
                    </div>
                    <div className="flex gap-2 md:gap-3">
+                      {selectedOrder.items.reduce((total, item) => total + parseFloat(item.balance_amount || 0), 0) > 0 && (
+                        <button
+                          onClick={() => setPayingBalanceOrder(selectedOrder)}
+                          className="px-4 md:px-6 py-2 md:py-3 bg-emerald-600 text-white rounded-xl md:rounded-2xl text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-emerald-900/20 border border-emerald-500 hover:bg-emerald-500"
+                        >
+                          Pay Balance
+                        </button>
+                      )}
                       {selectedOrder.status === 'completed' && (
                         <>
                           <button
@@ -799,6 +856,68 @@ const MyOrders = () => {
                           >
                             {submittingReview ? 'Sending...' : 'Submit Survey'}
                           </button>
+                      </div>
+                  </motion.div>
+              </div>
+          )}
+      </AnimatePresence>
+
+      {/* Pay Balance Modal */}
+      <AnimatePresence>
+          {payingBalanceOrder && (
+              <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-secondary/95 backdrop-blur-xl" onClick={() => setPayingBalanceOrder(null)} />
+                  <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="relative z-10 w-full max-w-lg bg-accent border border-white/10 rounded-[2.5rem] p-8 md:p-12 text-center shadow-2xl">
+                      <div className="mb-8">
+                        <div className="w-16 h-16 bg-emerald-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-emerald-500/20">
+                            <CreditCard className="text-emerald-500" size={32} />
+                        </div>
+                        <h3 className="text-2xl font-playfair font-bold text-neutral italic mb-2">Settle <span className="text-emerald-500 not-italic">Balance</span></h3>
+                        <p className="text-neutral/60 text-xs tracking-widest uppercase">Remaining: ₱{payingBalanceOrder.items.reduce((total, item) => total + parseFloat(item.balance_amount || 0), 0).toFixed(0)}</p>
+                      </div>
+
+                      <div className="space-y-6">
+                        <div className="grid grid-cols-2 gap-3">
+                            {['GCash', 'Maya', 'Bank Transfer', 'MariBank'].map(method => (
+                                <button
+                                    key={method}
+                                    onClick={() => setPayBalanceMethod(method)}
+                                    className={`py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border ${payBalanceMethod === method ? 'bg-primary text-secondary border-primary' : 'bg-secondary/40 text-neutral/40 border-white/5 hover:border-white/20'}`}
+                                >
+                                    {method}
+                                </button>
+                            ))}
+                        </div>
+
+                        {settings && (
+                            <div className="bg-secondary/60 border border-white/5 p-6 rounded-3xl space-y-4">
+                                <p className="text-[10px] text-neutral/40 uppercase font-bold tracking-widest">Send Payment To:</p>
+                                <div className="p-3 bg-black/40 rounded-xl">
+                                    {payBalanceMethod === 'GCash' && <p className="text-primary font-black text-xl">{settings.gcash_number}</p>}
+                                    {payBalanceMethod === 'Maya' && <p className="text-primary font-black text-xl">{settings.maya_details}</p>}
+                                    {payBalanceMethod === 'Bank Transfer' && <p className="text-primary font-black text-xs uppercase">{settings.bank_transfer_details}</p>}
+                                    {payBalanceMethod === 'MariBank' && <p className="text-primary font-black text-xl">{settings.maribank_details}</p>}
+                                </div>
+                                {payBalanceMethod === 'GCash' && settings.gcash_qr_url && <img src={getImageUrl(settings.gcash_qr_url)} className="w-32 h-32 mx-auto rounded-xl bg-white p-2" />}
+                                {payBalanceMethod === 'Maya' && settings.maya_qr_url && <img src={getImageUrl(settings.maya_qr_url)} className="w-32 h-32 mx-auto rounded-xl bg-white p-2" />}
+                            </div>
+                        )}
+
+                        <div className="pt-2">
+                            <input type="file" id="balance-proof" className="hidden" onChange={(e) => setPayBalanceProof(e.target.files[0])} />
+                            <label htmlFor="balance-proof" className={`w-full flex items-center justify-center gap-4 p-5 rounded-2xl cursor-pointer transition-all border-2 border-dashed ${payBalanceProof ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500' : 'bg-black/40 border-white/5 text-neutral/40'}`}>
+                                <Receipt size={20} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">{payBalanceProof ? 'Receipt Attached ✓' : 'Attach Final Receipt'}</span>
+                            </label>
+                        </div>
+
+                        <button
+                            onClick={handlePayBalance}
+                            disabled={isPayingBalance || !payBalanceProof}
+                            className="w-full bg-emerald-600 text-white py-5 rounded-2xl font-black uppercase text-xs tracking-[0.3em] shadow-lg shadow-emerald-900/20 disabled:opacity-20 transition-all hover:bg-emerald-500"
+                        >
+                            {isPayingBalance ? 'Processing...' : 'Settle Now'}
+                        </button>
                       </div>
                   </motion.div>
               </div>

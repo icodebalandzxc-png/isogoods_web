@@ -486,8 +486,8 @@ const MyOrders = () => {
                 className="bg-secondary/40 backdrop-blur-xl border border-white/5 rounded-[2rem] p-6 md:p-8 hover:bg-secondary/60 transition-all group cursor-pointer"
               >
                 <div className="flex flex-col md:flex-row justify-between gap-6">
-                  <div className="flex items-start gap-6">
-                    <div className="w-20 h-20 rounded-2xl overflow-hidden bg-black/20 border border-white/5 relative">
+                  <div className="flex flex-col sm:flex-row items-start gap-6 flex-1">
+                    <div className="w-20 h-20 rounded-2xl overflow-hidden bg-black/20 border border-white/5 relative shrink-0">
                       {order.status === 'preparing' ? (
                         <div className="absolute inset-0 bg-primary/20 flex items-center justify-center z-10">
                           <img src={chefPreparing} alt="Preparing" className="w-12 h-12 object-contain animate-bounce" />
@@ -503,28 +503,32 @@ const MyOrders = () => {
                         <div className="w-full h-full flex items-center justify-center text-neutral/10"><Package size={32} /></div>
                       )}
                     </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">{order.order_group_id || `#ORD-${order.id}`}</span>
-                        <div className="px-2 py-0.5 rounded bg-primary/10 text-primary text-[8px] font-black uppercase tracking-widest border border-primary/20">
-                          {order.order_type || 'Delivery'}
-                        </div>
-                        <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/20 border border-white/5 text-[9px] font-black uppercase tracking-widest ${
-                          order.status === 'pending' ? 'text-yellow-500' :
-                          order.status === 'preparing' ? 'text-blue-500' :
-                          order.status === 'delivering' ? 'text-purple-500' :
-                          order.status === 'completed' ? 'text-green-500' : 'text-red-500'
-                        }`}>
-                          {getStatusIcon(order.status)}
-                          {order.status}
+                    <div className="flex-1 space-y-3 w-full">
+                      <div className="flex flex-col xs:flex-row xs:items-center justify-between gap-3">
+                        <span className="text-[9px] font-black text-primary uppercase tracking-[0.2em] bg-primary/5 px-2 py-1 rounded-lg border border-primary/10 break-all inline-block">
+                          {order.order_group_id || `#ORD-${order.id}`}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <div className="px-2 py-1 rounded bg-primary/10 text-primary text-[8px] font-black uppercase tracking-widest border border-primary/20">
+                            {order.order_type || 'Delivery'}
+                          </div>
+                          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/20 border border-white/5 text-[9px] font-black uppercase tracking-widest ${
+                            order.status === 'pending' ? 'text-yellow-500' :
+                            order.status === 'preparing' ? 'text-blue-500' :
+                            order.status === 'delivering' ? 'text-purple-500' :
+                            order.status === 'completed' ? 'text-green-500' : 'text-red-500'
+                          }`}>
+                            {getStatusIcon(order.status)}
+                            <span>{order.status}</span>
+                          </div>
                         </div>
                       </div>
-                      <h3 className="text-xl font-bold text-neutral uppercase tracking-tight">
+                      <h3 className="text-xl md:text-2xl font-bold text-neutral uppercase tracking-tight leading-tight">
                         {order.items.length > 1 ? `${order.items[0].product_name} & ${order.items.length - 1} more items` : order.items[0].product_name}
                       </h3>
-                      <div className="flex items-center gap-4 text-[10px] text-neutral/40 font-medium">
+                      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[10px] text-neutral/40 font-medium">
                         <span className="flex items-center gap-1"><Clock size={12} /> {new Date(order.order_date).toLocaleDateString()}</span>
-                        <div className="flex flex-col">
+                        <div className="flex items-center gap-3">
                            <span className="text-primary font-black uppercase">Total: ₱{order.items.reduce((total, item) => total + (item.quantity * (item.price || 0)), 0)}</span>
                            {order.items.reduce((total, item) => total + parseFloat(item.balance_amount || 0), 0) > 0 && (
                              <span className="text-rose-500 font-black uppercase text-[8px] animate-pulse">Balance: ₱{order.items.reduce((total, item) => total + parseFloat(item.balance_amount || 0), 0)}</span>
@@ -549,11 +553,22 @@ const MyOrders = () => {
                     </div>
                   </div>
 
-                  <div className="flex flex-col justify-between items-end border-t md:border-t-0 md:border-l border-white/5 pt-6 md:pt-0 md:pl-8">
-                     <div className="text-right space-y-3">
-                        <div className="flex items-center justify-end gap-2 text-[10px] text-neutral/40">
-                           <MapPin size={12} className="text-primary" />
-                           <span className="max-w-[150px] truncate">{order.address}</span>
+                  <div className="flex flex-col justify-between items-start md:items-end border-t md:border-t-0 md:border-l border-white/5 pt-6 md:pt-0 md:pl-8">
+                     <div className="text-left md:text-right space-y-3 w-full">
+                        <div className="flex items-center md:justify-end gap-2 text-[10px] text-neutral/40">
+                           <MapPin size={12} className="text-primary shrink-0" />
+                           <span className="max-w-[200px] md:max-w-[150px] truncate">{order.address}</span>
+                        </div>
+                        <div className="flex items-center md:justify-end gap-2 text-[10px] text-neutral/40">
+                           <Phone size={12} className="text-primary shrink-0" />
+                           <span>{order.phone_number || 'N/A'}</span>
+                        </div>
+                     </div>
+                     <div className="flex items-center gap-2 text-[9px] font-black text-primary uppercase tracking-[0.2em] mt-4 opacity-0 md:group-hover:opacity-100 transition-opacity">
+                        View Details <ChevronRight size={14} />
+                     </div>
+                  </div>
+                </div>
                         </div>
                         <div className="flex items-center justify-end gap-2 text-[10px] text-neutral/40">
                            <Phone size={12} className="text-primary" />

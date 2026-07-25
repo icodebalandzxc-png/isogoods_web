@@ -393,7 +393,13 @@ const FullMenu = () => {
                               selectedProductReviews.reviews.map((rev, ri) => (
                                   <div key={ri} className="space-y-2">
                                       <div className="flex justify-between items-start">
-                                          <p className="text-sm font-bold text-neutral">{rev.user_name}</p>
+                                          <p className="text-sm font-bold text-neutral">
+                                              {rev.user_name ? (
+                                                  rev.user_name.split(' ').length > 1
+                                                      ? `${rev.user_name.split(' ')[0]} ${rev.user_name.split(' ').pop().charAt(0)}.`
+                                                      : rev.user_name
+                                              ) : 'Anonymous'}
+                                          </p>
                                           <div className="flex text-primary scale-75 origin-right">
                                               {[1, 2, 3, 4, 5].map(star => (
                                                   <FaStar key={star} fill={star <= rev.rating ? 'currentColor' : 'none'} className="w-4 h-4" />

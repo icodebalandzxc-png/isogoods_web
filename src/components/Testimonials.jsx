@@ -50,7 +50,13 @@ const Testimonials = () => {
                 <div className="flex items-center gap-4 border-t border-white/10 pt-6 w-full justify-center">
                   <img src={item.image} alt={item.name} className="w-12 h-12 rounded-full border-2 border-[#0084FF]/30 shadow-lg" />
                   <div className="text-left">
-                    <h5 className="font-bold text-neutral">{item.name}</h5>
+                    <h5 className="font-bold text-neutral">
+                        {item.name ? (
+                            item.name.split(' ').length > 1
+                                ? `${item.name.split(' ')[0]} ${item.name.split(' ').pop().charAt(0)}.`
+                                : item.name
+                        ) : 'Anonymous'}
+                    </h5>
                     <div className="flex items-center gap-2">
                        <span className="text-primary text-[10px] uppercase tracking-widest font-bold">{item.role}</span>
                        <span className="text-neutral/30 text-[10px]">•</span>

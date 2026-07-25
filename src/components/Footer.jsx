@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { FaFacebook, FaInstagram, FaTwitter, FaYoutube } from 'react-icons/fa';
+import { FaFacebook, FaInstagram, FaTwitter, FaYoutube, FaAndroid } from 'react-icons/fa';
 import logo from '../assets/logo.jpg';
 
 const Footer = () => {
@@ -30,6 +30,19 @@ const Footer = () => {
               </a>
               <a href="#" className="w-10 h-10 glass rounded-full flex items-center justify-center text-primary hover:bg-primary hover:text-accent transition-all duration-300">
                 <FaYoutube />
+              </a>
+            </div>
+
+            {/* App Download Link */}
+            <div className="pt-2">
+              <p className="text-xs text-neutral/40 uppercase tracking-widest mb-3 font-bold">Get our mobile app</p>
+              <a
+                href="/isogoods.apk"
+                download
+                className="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300 shadow-lg shadow-green-900/20"
+              >
+                <FaAndroid className="text-lg" />
+                Download APK
               </a>
             </div>
           </div>
